@@ -29,6 +29,7 @@ func main() {
 	} else if os.Args[1] == "create" {
 		opts := parseArgs(os.Args[2:])
 
+		// Preamble, depending on the format
 		if opts.Format == "" || opts.Format == "yaml" {
 			log.Println(`apiVersion: v1
 kind: Secret
@@ -38,11 +39,13 @@ type: Opaque
 data:`)
 		}
 
+		// Give all handlers a go to write to the secret data
 		data := make(map[string][]byte, 0)
 		for _, h := range opts.Handlers {
 			h.Populate(data)
 		}
 
+		// Print all values in the correct format
 		for key, value := range data {
 			switch opts.Format {
 			case "env":
