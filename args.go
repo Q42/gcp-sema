@@ -20,7 +20,6 @@ func parseArgs(args []string) Usage {
 
 	parser := flags.NewParser(&opts, flags.Default) // flags.IgnoreUnknown
 	parser.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) ([]string, error) {
-		log.Println("UnknownOptionHandler", option, arg, args)
 		value, hasValue := arg.Value()
 		if matchedKey := reArgName.FindStringSubmatch(option); len(matchedKey) == 2 && hasValue {
 			if matchedValue := reArgValue.FindStringSubmatch(value); len(matchedValue) == 3 {

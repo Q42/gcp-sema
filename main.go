@@ -19,41 +19,10 @@ func main() {
 	client, err = sema.NewClient(ctx)
 	panicIfErr(err)
 
-	// log.Println("Called with $0", os.Args[1:])
-	// log.Println("Usage:", "$0 [project] --format=yaml --from-[handler]=[key]=[source]")
-	// log.Println("Usage:", "$0 [project] --format=env --from-[handler]=[key]=[source]")
-	// log.Printf("Parsed arguments to %+v", )
-	// log.Println("")
 	if os.Args[1] == "add" {
 		log.Println("TODO")
 	} else if os.Args[1] == "create" {
-		opts := parseArgs(os.Args[2:])
-
-		// Preamble, depending on the format
-		if opts.Format == "" || opts.Format == "yaml" {
-			log.Println(`apiVersion: v1
-kind: Secret
-metadata:
-  name: mysecret
-type: Opaque
-data:`)
-		}
-
-		// Give all handlers a go to write to the secret data
-		data := make(map[string][]byte, 0)
-		for _, h := range opts.Handlers {
-			h.Populate(data)
-		}
-
-		// Print all values in the correct format
-		for key, value := range data {
-			switch opts.Format {
-			case "env":
-				log.Printf("%s=%s", key, string(value))
-			default:
-				log.Printf("  %s: %s", key, string(value))
-			}
-		}
+		create(os.Args[2:])
 	} else if os.Args[1] == "dummy" {
 		// Dummy:
 		secrets := getAllSecretsInProject("my-project")
