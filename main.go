@@ -7,11 +7,13 @@ import (
 	"os"
 
 	sema "cloud.google.com/go/secretmanager/apiv1"
+	flags "github.com/jessevdk/go-flags"
 )
 
 var client *sema.Client
 var ctx context.Context = context.Background()
 var log *loglib.Logger = loglib.New(os.Stderr, "", 0)
+var parser = flags.NewParser(&struct{}{}, flags.Default)
 
 func main() {
 	// Get Secret Manager client
@@ -19,18 +21,9 @@ func main() {
 	client, err = sema.NewClient(ctx)
 	panicIfErr(err)
 
-	if os.Args[1] == "add" {
-		log.Println("TODO")
-	} else if os.Args[1] == "create" {
-		create(os.Args[2:])
-	} else if os.Args[1] == "dummy" {
-		// Dummy:
-		secrets := getAllSecretsInProject("my-project")
-		for _, name := range secrets {
-			log.Println("Secret", name)
-			version := getLastSecretVersion(name)
-			value := getSecretValue(version).Data
-			log.Println("Secret", version, "secret data length =", len(value))
-		}
+	// Subcommands are added in cmd-*.go files
+	_, err = parser.Parse()
+	if err != nil {
+		os.Exit(1)
 	}
 }

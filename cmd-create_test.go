@@ -10,6 +10,7 @@ func TestParseCreateArgs(t *testing.T) {
 	// Test we can parse all the different source formats from the README.md
 	// format: "--from-[handler]=[key]=[source]"
 	args := parseCreateArgs([]string{
+		"my-project",
 		// literals just like kubectl create secret
 		"--from-literal=myfile.txt=literal-value",
 		// plain files just like kubectl create secret
@@ -22,8 +23,9 @@ func TestParseCreateArgs(t *testing.T) {
 		"--from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
 	})
 
-	assert.Equal(t, Usage{
-		Format: "yaml",
+	assert.Equal(t, CreateCommand{
+		Project: "my-project",
+		Format:  "yaml",
 		Handlers: []SecretHandler{
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),

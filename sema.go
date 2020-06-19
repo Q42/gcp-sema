@@ -10,10 +10,13 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
-func getAllSecretsInProject(project string) []string {
+// GcloudProject is used by these Secret Manager utilities. Set it before using them!
+var GcloudProject = ""
+
+func getAllSecretsInProject() []string {
 	it := client.ListSecrets(ctx, &secretmanagerpb.ListSecretsRequest{
 		// The parenet resource in the format `projects/*`.
-		Parent: fmt.Sprintf("projects/%s", project),
+		Parent: fmt.Sprintf("projects/%s", GcloudProject),
 	})
 
 	data := make([]string, 0)

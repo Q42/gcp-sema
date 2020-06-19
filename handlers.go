@@ -93,9 +93,6 @@ type semaHandlerLiteral struct {
 }
 
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
-	// TODO read SEMA and put data in data
-	data := h.secret
-	getLastSecretVersion(h.secret)
-	bucket[h.key] = []byte(data)
-	panic("Not implemented!")
+	version := getLastSecretVersion(fmt.Sprintf("projects/%s/secrets/%s", GcloudProject, h.secret))
+	bucket[h.key] = getSecretValue(version).Data
 }
