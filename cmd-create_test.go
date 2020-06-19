@@ -23,9 +23,8 @@ func TestParseCreateArgs(t *testing.T) {
 		"--from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
 	})
 
-	assert.Equal(t, CreateCommand{
-		Project: "my-project",
-		Format:  "yaml",
+	expected := CreateCommand{
+		Format: "yaml",
 		Handlers: []SecretHandler{
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
@@ -33,22 +32,25 @@ func TestParseCreateArgs(t *testing.T) {
 			MakeSecretHandler("sema-schema-to-literals", "config-schema.json", ""),
 			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
 		},
-	}, args, "Arguments must be parsed correctly")
+	}
+	expected.Positional.Project = "my-project"
+
+	assert.Equal(t, expected, args, "Arguments must be parsed correctly")
 
 }
 
 func TestCreateLiteral(t *testing.T) {
 	obj := make(map[string][]byte, 0)
-	args := parseCreateArgs([]string{"--format=env", "--from-literal=text.txt=foobar"})
+	args := parseCreateArgs([]string{"my-project", "--format=env", "--from-literal=text.txt=foobar"})
 	args.Handlers[0].Populate(obj)
 	assert.Equal(t, []byte("foobar"), obj["text.txt"], "Literal SecretHandler should work")
 }
 
 func TestCreateFormat(t *testing.T) {
-	args := parseCreateArgs([]string{"--format=env"})
+	args := parseCreateArgs([]string{"my-project", "--format=env"})
 	assert.Equal(t, "env", args.Format, "Should parse formats")
-	args = parseCreateArgs([]string{"--format=yaml"})
+	args = parseCreateArgs([]string{"--format=yaml", "my-project"})
 	assert.Equal(t, "yaml", args.Format, "Should parse formats")
-	args = parseCreateArgs([]string{""})
+	args = parseCreateArgs([]string{"my-project"})
 	assert.Equal(t, "yaml", args.Format, "Should parse formats")
 }

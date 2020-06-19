@@ -6,7 +6,10 @@ import (
 	"io/ioutil"
 )
 
-// SecretHandler is a container for cli arg `--from-[handler]=[key]=[value]`
+// This file defines all handlers `--from-[handler]=[key]=[value]`,
+
+// SecretHandler is the shared interface common between all handlers:
+// they can all populate values in a blob of secret data.
 type SecretHandler interface {
 	Populate(bucket map[string][]byte)
 }

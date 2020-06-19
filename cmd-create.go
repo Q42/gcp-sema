@@ -80,7 +80,7 @@ data:
 type CreateCommand struct {
 	Positional struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
-	} `positional-args:"yes" `
+	} `positional-args:"yes"`
 	Verbose  []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
 	Format   string          `short:"o" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose)."`
 	Handlers []SecretHandler `no-flag:"y"`
