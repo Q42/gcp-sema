@@ -33,6 +33,7 @@ func getAllSecretsInProject(project string) []string {
 	return data
 }
 
+// Name should have the format projects/*/secrets/*
 func getLastSecretVersion(name string) string {
 	versions := make([]*secretmanagerpb.SecretVersion, 0)
 	it := client.ListSecretVersions(ctx, &secretmanagerpb.ListSecretVersionsRequest{Parent: name})

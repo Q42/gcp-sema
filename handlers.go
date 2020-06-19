@@ -22,18 +22,14 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 		return &semaHandlerSingleKey{key: name, configSchemaFile: value}
 	case "sema-schema-to-literals":
 		return &semaHandlerEnvironmentVariables{configSchemaFile: name}
+	case "sema-literal":
+		return &semaHandlerLiteral{key: name, secret: value}
 	default:
 		if value == "" {
-			log.Fatal(fmt.Errorf("Could not parse --from-%s=%s", handler, name))
+			panic(fmt.Errorf("Could not parse --from-%s=%s", handler, name))
 		} else {
-			log.Fatal(fmt.Errorf("Could not parse --from-%s=%s=%s", handler, name, value))
+			panic(fmt.Errorf("Could not parse --from-%s=%s=%s", handler, name, value))
 		}
-		return &unknownHandler{
-			handler: handler,
-			key:     name,
-			value:   value,
-		}
-
 	}
 }
 
@@ -88,5 +84,18 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	// Put each key / env in their own literal
 	bucket["LOG_LEVEL"] = []byte("info")
 	bucket["PORT"] = []byte("8080")
+	panic("Not implemented!")
+}
+
+type semaHandlerLiteral struct {
+	key    string
+	secret string
+}
+
+func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
+	// TODO read SEMA and put data in data
+	data := h.secret
+	getLastSecretVersion(h.secret)
+	bucket[h.key] = []byte(data)
 	panic("Not implemented!")
 }

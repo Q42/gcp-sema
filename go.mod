@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	cloud.google.com/go v0.58.0
+	github.com/go-errors/errors v1.1.1
 	github.com/golang/protobuf v1.4.2
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/stretchr/testify v1.4.0

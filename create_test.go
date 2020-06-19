@@ -6,10 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseArgs(t *testing.T) {
-	args := parseArgs([]string{
-		"--format=env",
-		"--from-[handler]=[key]=[source]",
+func TestParseCreateArgs(t *testing.T) {
+	// Test we can parse all the different source formats from the README.md
+	// format: "--from-[handler]=[key]=[source]"
+	args := parseCreateArgs([]string{
+		// literals just like kubectl create secret
 		"--from-literal=myfile.txt=literal-value",
 		// plain files just like kubectl create secret
 		"--from-file=myfile.txt=myfile.txt",
@@ -22,9 +23,8 @@ func TestParseArgs(t *testing.T) {
 	})
 
 	assert.Equal(t, Usage{
-		Format: "env",
+		Format: "yaml",
 		Handlers: []SecretHandler{
-			MakeSecretHandler("[handler]", "[key]", "[source]"),
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
 			MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json"),
@@ -35,9 +35,18 @@ func TestParseArgs(t *testing.T) {
 
 }
 
-func TestLiteral(t *testing.T) {
+func TestCreateLiteral(t *testing.T) {
 	obj := make(map[string][]byte, 0)
-	args := parseArgs([]string{"--format=env", "--from-literal=text.txt=foobar"})
+	args := parseCreateArgs([]string{"--format=env", "--from-literal=text.txt=foobar"})
 	args.Handlers[0].Populate(obj)
 	assert.Equal(t, []byte("foobar"), obj["text.txt"], "Literal SecretHandler should work")
+}
+
+func TestCreateFormat(t *testing.T) {
+	args := parseCreateArgs([]string{"--format=env"})
+	assert.Equal(t, "env", args.Format, "Should parse formats")
+	args = parseCreateArgs([]string{"--format=yaml"})
+	assert.Equal(t, "yaml", args.Format, "Should parse formats")
+	args = parseCreateArgs([]string{""})
+	assert.Equal(t, "yaml", args.Format, "Should parse formats")
 }
