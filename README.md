@@ -36,3 +36,9 @@ sema render \
   # extract key value from SeMa into literals
   --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
 ```
+
+## Developing & debugging
+Use this for a quick test:
+```bash
+$ make build-local && ./bin/sema --from-literal=test.txt=value
+```
