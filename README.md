@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # GCP SecretManager utility
 
 This utility can be used to quickly access secret data from GCP SecretManager ("sema").
@@ -23,6 +22,8 @@ sema render my-project --format=env \
 # Render options (advanced):
 sema render \
   # format:
+  --format=yaml \
+  # multiple ways to specify a secret source:
   --from-[handler]=[key]=[source] \
   # literals just like kubectl create secret
   --from-literal=myfile.txt=literal-value \

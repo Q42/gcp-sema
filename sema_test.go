@@ -10,16 +10,8 @@ import (
 
 func TestSortPutsLatestVersionFirst(t *testing.T) {
 	var versions = []*secretmanagerpb.SecretVersion{
-		&secretmanagerpb.SecretVersion{
-			CreateTime: &timestamp.Timestamp{
-				Seconds: 42,
-			},
-		},
-		&secretmanagerpb.SecretVersion{
-			CreateTime: &timestamp.Timestamp{
-				Seconds: 10,
-			},
-		},
+		{CreateTime: &timestamp.Timestamp{Seconds: 42}},
+		{CreateTime: &timestamp.Timestamp{Seconds: 10}},
 	}
 
 	// Copied from 'getLastSecretVersion'
