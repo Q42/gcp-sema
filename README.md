@@ -25,10 +25,10 @@ sema render \
   --format=yaml \
   # multiple ways to specify a secret source:
   --from-[handler]=[key]=[source] \
-  # literals just like kubectl create secret
-  --from-literal=myfile.txt=literal-value \
-  # plain files just like kubectl create secret
-  --from-file=myfile.txt=myfile.txt \
+  # literals just like kubectl create secret --from-literal=myfile.txt=foo-bar
+  --from-literal=myfile.txt=foo-bar \
+  # plain files just like kubectl create secret --from-file=myfile.txt=./myfile.txt
+  --from-file=myfile.txt=./myfile.txt \
   # extract according to schema into a single property 'config-env.json'
   --from-sema-schema-to-file=config-env.json=config-schema.json \
   # extract according to schema into environment variable literals

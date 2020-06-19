@@ -28,6 +28,7 @@ func TestParseArgs(t *testing.T) {
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
 			MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json"),
+			MakeSecretHandler("sema-schema-to-literals", "config-schema.json", ""),
 			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
 		},
 	}, args, "Arguments must be parsed correctly")

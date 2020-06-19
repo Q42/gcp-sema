@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -16,7 +18,16 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 		return &literalHandler{key: name, value: value}
 	case "file":
 		return &fileHandler{key: name, file: value}
+	case "sema-schema-to-file":
+		return &semaHandlerSingleKey{key: name, configSchemaFile: value}
+	case "sema-schema-to-literals":
+		return &semaHandlerEnvironmentVariables{configSchemaFile: name}
 	default:
+		if value == "" {
+			log.Fatal(fmt.Errorf("Could not parse --from-%s=%s", handler, name))
+		} else {
+			log.Fatal(fmt.Errorf("Could not parse --from-%s=%s=%s", handler, name, value))
+		}
 		return &unknownHandler{
 			handler: handler,
 			key:     name,
@@ -31,8 +42,8 @@ type literalHandler struct {
 	value string
 }
 
-func (lh *literalHandler) Populate(bucket map[string][]byte) {
-	bucket[lh.key] = []byte(lh.value)
+func (h *literalHandler) Populate(bucket map[string][]byte) {
+	bucket[h.key] = []byte(h.value)
 }
 
 type unknownHandler struct {
@@ -41,7 +52,7 @@ type unknownHandler struct {
 	value   string
 }
 
-func (lh *unknownHandler) Populate(bucket map[string][]byte) {
+func (h *unknownHandler) Populate(bucket map[string][]byte) {
 	panic("Not Implemented!")
 }
 
@@ -50,8 +61,32 @@ type fileHandler struct {
 	file string
 }
 
-func (lh *fileHandler) Populate(bucket map[string][]byte) {
-	data, err := ioutil.ReadFile(lh.file)
+func (h *fileHandler) Populate(bucket map[string][]byte) {
+	data, err := ioutil.ReadFile(h.file)
 	panicIfErr(err)
-	bucket[lh.key] = data
+	bucket[h.key] = data
+}
+
+type semaHandlerSingleKey struct {
+	key              string
+	configSchemaFile string
+}
+
+func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
+	// TODO read config-schema.json, find a secret for each key / or rely on defaults
+	json := `{ "todo": true }`
+	bucket[h.key] = []byte(base64.StdEncoding.EncodeToString([]byte(json)))
+	panic("Not Implemented!")
+}
+
+type semaHandlerEnvironmentVariables struct {
+	configSchemaFile string
+}
+
+func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
+	// TODO read config-schema.json, find a secret for each key / or rely on defaults
+	// Put each key / env in their own literal
+	bucket["LOG_LEVEL"] = []byte("info")
+	bucket["PORT"] = []byte("8080")
+	panic("Not implemented!")
 }

@@ -16,14 +16,14 @@ type Usage struct {
 func parseArgs(args []string) Usage {
 	opts := Usage{}
 	reArgName := regexp.MustCompile(`from-([^=]+)`)
-	reArgValue := regexp.MustCompile(`([^=]+)=([^=]+)`)
+	reArgValue := regexp.MustCompile(`([^=]+)(=([^=]+))?`)
 
 	parser := flags.NewParser(&opts, flags.Default) // flags.IgnoreUnknown
 	parser.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) ([]string, error) {
 		value, hasValue := arg.Value()
 		if matchedKey := reArgName.FindStringSubmatch(option); len(matchedKey) == 2 && hasValue {
-			if matchedValue := reArgValue.FindStringSubmatch(value); len(matchedValue) == 3 {
-				handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[2])
+			if matchedValue := reArgValue.FindStringSubmatch(value); len(matchedValue) > 2 {
+				handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
 				opts.Handlers = append(opts.Handlers, handler)
 				return args, nil
 			}
