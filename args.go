@@ -8,9 +8,9 @@ import (
 
 // Usage describes how to use this module
 type Usage struct {
-	Verbose  []bool           `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format   string           `short:"o" long:"format" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose)."`
-	Handlers []*SecretHandler `no-flag:"y" description:"multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value]"`
+	Verbose  []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Format   string          `short:"o" long:"format" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose)."`
+	Handlers []SecretHandler `no-flag:"y" description:"multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value]"`
 }
 
 func parseArgs(args []string) Usage {

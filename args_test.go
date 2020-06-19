@@ -23,7 +23,7 @@ func TestParseArgs(t *testing.T) {
 
 	assert.Equal(t, Usage{
 		Format: "env",
-		Handlers: []*SecretHandler{
+		Handlers: []SecretHandler{
 			MakeSecretHandler("[handler]", "[key]", "[source]"),
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
@@ -31,4 +31,12 @@ func TestParseArgs(t *testing.T) {
 			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
 		},
 	}, args, "Arguments must be parsed correctly")
+
+}
+
+func TestLiteral(t *testing.T) {
+	obj := make(map[string][]byte, 0)
+	args := parseArgs([]string{"--format=env", "--from-literal=text.txt=foobar"})
+	args.Handlers[0].Populate(obj)
+	assert.Equal(t, []byte("foobar"), obj["text.txt"], "Literal SecretHandler should work")
 }
