@@ -17,7 +17,9 @@ var (
 	createCommand = &CreateCommand{}
 )
 
-var createDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
+var createDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
+var createDescriptionLong = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
+
 There are multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value].
 The following options are implemented:
 
@@ -38,7 +40,7 @@ The following options are implemented:
 `
 
 func init() {
-	_, err := parser.AddCommand("create", createDescription, createDescription, createCommand)
+	_, err := parser.AddCommand("create", createDescription, createDescriptionLong, createCommand)
 	panicIfErr(err)
 	parser.UnknownOptionHandler = cliParseFromHandlers
 }
