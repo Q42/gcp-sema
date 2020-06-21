@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 func init() {
@@ -41,9 +43,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 	for _, file := range files {
 		if strings.TrimSpace(file) != "" {
 			for idx, conf := range parseSchemaFile(file).flatConfigurations {
-				log.Printf("%d:\t%s: %s\n", idx, strings.Join(conf.Path, "."), conf.Format)
+				log.Printf("%d:\t%s: %s\n", idx, color.CyanString(strings.Join(conf.Path, ".")), conf.Format)
 				if conf.Doc != "" {
-					log.Println(" ", conf.Doc)
+					log.Printf("\t%s\n", color.BlueString(conf.Doc))
 				}
 				for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
 					log.Println("\t- ", suggestion)
