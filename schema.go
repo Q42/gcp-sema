@@ -2,6 +2,8 @@ package main
 
 import (
 	"io/ioutil"
+	"sort"
+	"strings"
 
 	"github.com/flynn/json5"
 )
@@ -13,7 +15,7 @@ func parseSchemaFile(schemaFile string) convictConfigSchema {
 }
 
 func parseSchema(data []byte) convictConfigSchema {
-	dest := map[string]interface{}{}
+	dest := &convictJSONTree{}
 	err := json5.Unmarshal(data, &dest)
 	panicIfErr(err)
 
@@ -23,39 +25,109 @@ func parseSchema(data []byte) convictConfigSchema {
 	}
 }
 
+type convictJSONTree struct {
+	Leaf     *convictConfiguration
+	Children []*convictJSONTree
+}
+
+func (tree *convictJSONTree) Nest(key string) {
+	if tree.Leaf != nil {
+		tree.Leaf.Path = append([]string{key}, tree.Leaf.Path...)
+	}
+	for _, c := range tree.Children {
+		c.Nest(key)
+	}
+}
+
+func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
+	convict := struct {
+		Default jsonValue `json:"default"`
+	}{}
+
+	// Parse to decide if it is a convict propery
+	err := json5.Unmarshal(data, &convict)
+	if err != nil {
+		return err
+	}
+
+	// This is a convict configuration property: parse as map[string]interface{}
+	if convict.Default.Set {
+		obj := map[string]interface{}{}
+		err := json5.Unmarshal(data, &obj)
+		if err != nil {
+			return err
+		}
+		_, format := isConvictLeaf(obj)
+		tree.Leaf = &convictConfiguration{
+			Format:       format,
+			DefaultValue: toString(convict.Default.Value),
+			Doc:          toString(obj["doc"]),
+			Env:          toString(obj["env"]),
+		}
+		return nil
+	}
+
+	// Else, this is a nested tree, parse items as nested things
+	childs := map[string]*convictJSONTree{}
+	err = json5.Unmarshal(data, &childs)
+	if err != nil {
+		return err
+	}
+
+	// Apply stable ordering of tree.Children,
+	// otherwise testing is a nightmare.
+	keys := []string{}
+	for key := range childs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		v := childs[key]
+		v.Nest(key)
+		tree.Children = append(tree.Children, v)
+	}
+
+	return nil
+}
+
 type convictConfigSchema struct {
 	rawJSONSchema      []byte
 	flatConfigurations []convictConfiguration
 }
 
 type convictConfiguration struct {
-	path         []string
-	format       string
-	defaultValue string
-	doc          string
-	env          string
+	Path         []string
+	Format       string `json:"format"`
+	DefaultValue string `json:"default"`
+	Doc          string `json:"doc"`
+	Env          string `json:"env"`
 }
 
-func convictRecursiveResolve(data map[string]interface{}, path ...string) []convictConfiguration {
-	format, hasFormat := asString(data["format"])
-	defaultValue, hasDefault := asString(data["default"])
-
-	if hasFormat || hasDefault {
-		return []convictConfiguration{{
-			path:         path,
-			format:       format,
-			defaultValue: defaultValue,
-			doc:          toString(data["doc"]),
-			env:          toString(data["env"]),
-		}}
+// Convict supports nested properties. Everything with a "default" property
+func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format string) {
+	switch v := data["format"].(type) {
+	case string:
+		hasFormat = true
+		format = v
+	case []interface{}:
+		if strs, isAllString := allStrings(v); isAllString {
+			hasFormat = true
+			format = strings.Join(strs, ",")
+		}
+	default:
+		hasFormat = false
 	}
 
+	return hasFormat, format
+}
+
+func convictRecursiveResolve(data *convictJSONTree) []convictConfiguration {
 	configs := []convictConfiguration{}
-	for key, value := range data {
-		switch v := value.(type) {
-		case map[string]interface{}:
-			configs = append(configs, convictRecursiveResolve(v, append(path, key)...)...)
-		}
+	if data.Leaf != nil {
+		configs = append(configs, *data.Leaf)
+	}
+	for _, v := range data.Children {
+		configs = append(configs, convictRecursiveResolve(v)...)
 	}
 	return configs
 }
@@ -76,3 +148,41 @@ func toString(input interface{}) string {
 }
 
 // ToSecretManagerKeys
+
+func allStrings(input []interface{}) (out []string, allString bool) {
+	allString = true
+	for _, v := range input {
+		if str, isStr := v.(string); isStr {
+			out = append(out, str)
+		} else {
+			allString = false
+		}
+	}
+	return
+}
+
+type jsonValue struct {
+	Value interface{}
+	Valid bool
+	Set   bool
+}
+
+func (i *jsonValue) UnmarshalJSON(data []byte) error {
+	// If this method was called, the value was set.
+	i.Set = true
+
+	if string(data) == "null" {
+		// The key was set to null
+		i.Valid = false
+		return nil
+	}
+
+	// The key isn't set to null
+	var temp interface{}
+	if err := json5.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	i.Value = temp
+	i.Valid = true
+	return nil
+}
