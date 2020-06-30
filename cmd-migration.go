@@ -42,6 +42,8 @@ func (opts *migrateCommand) Execute(args []string) error {
 	// Show all configuration options, suggested SecretManager keys
 	// and which are already set.
 
+	// TODO check is arrays work: for example SC username/password combos!
+
 	for _, file := range files {
 		log.Println(file + ":")
 		if strings.TrimSpace(file) != "" {
