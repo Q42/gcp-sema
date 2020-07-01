@@ -1,5 +1,4 @@
 # GCP SecretManager utility
-
 This utility can be used to quickly access secret data from GCP SecretManager ("sema").
 It can output Secrets in environment/property-file format or Kubernetes format.
 The utility is build in Golang, but can be downloaded as binary from this repo
