@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"sort"
-	"strings"
 
 	"github.com/flynn/json5"
 )
@@ -60,7 +60,7 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 		_, format := isConvictLeaf(obj)
 		tree.Leaf = &convictConfiguration{
 			Format:       format,
-			DefaultValue: toString(convict.Default.Value),
+			DefaultValue: convict.Default.Value,
 			Doc:          toString(obj["doc"]),
 			Env:          toString(obj["env"]),
 		}
@@ -97,22 +97,47 @@ type convictConfigSchema struct {
 
 type convictConfiguration struct {
 	Path         []string
-	Format       string `json:"format"`
-	DefaultValue string `json:"default"`
-	Doc          string `json:"doc"`
-	Env          string `json:"env"`
+	Format       convictFormat
+	DefaultValue interface{} `json:"default"`
+	Doc          string      `json:"doc"`
+	Env          string      `json:"env"`
 }
 
 // Convict supports nested properties. Everything with a "default" property
-func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format string) {
+func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictFormat) {
 	switch v := data["format"].(type) {
 	case string:
 		hasFormat = true
-		format = v
+		switch v {
+		case "port":
+			format = convictFormatPort{}
+		case "Boolean":
+			format = convictFormatBoolean{}
+		case "Number":
+			fallthrough
+		case "int":
+			format = convictFormatInt{v}
+		case "Array":
+			format = convictFormatArray{}
+		case "String":
+			fallthrough
+		case "string-file-exists":
+			fallthrough
+		case "string-optional":
+			fallthrough
+		case "string-optional-locally":
+			format = convictFormatString{actualFormat: v}
+		default:
+			panic(fmt.Errorf("Unknown format %s", v))
+		}
+		format = convictFormatString{actualFormat: v}
 	case []interface{}:
 		if strs, isAllString := allStrings(v); isAllString {
 			hasFormat = true
-			format = strings.Join(strs, ",")
+			format = convictFormatString{
+				actualFormat:   v,
+				possibleValues: strs,
+			}
 		}
 	default:
 		hasFormat = false

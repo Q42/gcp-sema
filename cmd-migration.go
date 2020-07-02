@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -43,10 +45,23 @@ func (opts *migrateCommand) Execute(args []string) error {
 	for _, file := range files {
 		if strings.TrimSpace(file) != "" {
 			for idx, conf := range parseSchemaFile(file).flatConfigurations {
-				log.Printf("%d:\t%s: %s\n", idx, color.CyanString(strings.Join(conf.Path, ".")), conf.Format)
+				// print: 1: LOGLEVEL (format: [none,debug,info,warn,error], env: LOGLEVEL)
+				infos := make([]string, 0)
+				if conf.Format != nil {
+					infos = append(infos, "format: "+conf.Format.String())
+				}
+				if conf.Env != "" {
+					infos = append(infos, "env: "+conf.Env)
+				}
+				if conf.DefaultValue != nil {
+					data, _ := json.Marshal(conf.DefaultValue)
+					infos = append(infos, fmt.Sprintf("default: %s", string(data)))
+				}
+				log.Printf("%d:\t%s (%s)\n", idx, color.CyanString(strings.Join(conf.Path, ".")), strings.Join(infos, ", "))
 				if conf.Doc != "" {
 					log.Printf("\t%s\n", color.BlueString(conf.Doc))
 				}
+				// print all possible keys we'll look for later
 				for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
 					log.Println("\t- ", suggestion)
 				}
