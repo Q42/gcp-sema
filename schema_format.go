@@ -12,6 +12,17 @@ type convictFormat interface {
 	String() string
 }
 
+type convictFormatAny struct{}
+
+func (f convictFormatAny) String() string {
+	return "*"
+}
+
+func (f convictFormatAny) Coerce(input string) (interface{}, error) {
+	// this is dangerous, as we wont coerce an arraylike "a,b,c" into an array for example
+	return input, nil
+}
+
 type convictFormatString struct {
 	actualFormat   interface{}
 	possibleValues []string

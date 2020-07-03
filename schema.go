@@ -11,6 +11,12 @@ import (
 func parseSchemaFile(schemaFile string) convictConfigSchema {
 	data, err := ioutil.ReadFile(schemaFile)
 	panicIfErr(err)
+	defer func() {
+		// Catch any panic errors down the line
+		if r := recover(); r != nil {
+			panic(fmt.Errorf("cannot parse schema '%s': %v", schemaFile, r))
+		}
+	}()
 	return parseSchema(data)
 }
 
@@ -106,10 +112,16 @@ func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictF
 			format = convictFormatBoolean{}
 		case "Number":
 			fallthrough
+		case "int-optional":
+			format = convictFormatInt{v}
 		case "int":
 			format = convictFormatInt{v}
 		case "Array":
 			format = convictFormatArray{}
+		case "email":
+			fallthrough
+		case "url":
+			fallthrough
 		case "String":
 			fallthrough
 		case "string-file-exists":
@@ -118,6 +130,8 @@ func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictF
 			fallthrough
 		case "string-optional-locally":
 			format = convictFormatString{actualFormat: v}
+		case "*":
+			format = convictFormatAny{}
 		default:
 			panic(fmt.Errorf("Unknown format %s", v))
 		}
