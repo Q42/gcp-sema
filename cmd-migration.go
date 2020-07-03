@@ -37,12 +37,13 @@ func (opts *migrateCommand) Execute(args []string) error {
 	files := strings.Split(string(data.Bytes()), "\n")
 
 	// Get all secret names that are available
-	_ = getAllSecretsInProject()
+	availableSecrets := getAllSecretsInProject()
 
 	// Show all configuration options, suggested SecretManager keys
 	// and which are already set.
 
 	for _, file := range files {
+		log.Println(file + ":")
 		if strings.TrimSpace(file) != "" {
 			for idx, conf := range parseSchemaFile(file).flatConfigurations {
 				// print: 1: LOGLEVEL (format: [none,debug,info,warn,error], env: LOGLEVEL)
@@ -63,7 +64,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 				}
 				// print all possible keys we'll look for later
 				for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
-					log.Println("\t- ", suggestion)
+					log.Println("\t- ", colorBasedOnAvailability(availableSecrets, suggestion))
 				}
 			}
 		}
@@ -91,4 +92,13 @@ func convictToSemaKey(prefix string, path []string) []string {
 	return []string{
 		strings.Join(path, "_"),
 	}
+}
+
+func colorBasedOnAvailability(availables []string, suggestion string) string {
+	for _, available := range availables {
+		if suggestion == available {
+			return color.GreenString(suggestion)
+		}
+	}
+	return color.RedString(suggestion)
 }

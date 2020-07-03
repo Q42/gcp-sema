@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/fatih/color"
 )
 
 // This file defines all handlers `--from-[handler]=[key]=[value]`,
@@ -72,10 +75,25 @@ type semaHandlerSingleKey struct {
 }
 
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
-	// TODO read config-schema.json, find a secret for each key / or rely on defaults
-	json := `{ "todo": true }`
-	bucket[h.key] = []byte(base64.StdEncoding.EncodeToString([]byte(json)))
-	panic("Not Implemented!")
+	availableSecretKeys := getAllSecretsInProject()
+	schema := parseSchemaFile(h.configSchemaFile)
+	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
+
+	// Shove it into a nested JSON structure
+	jsonMap := hydrateSecretTree(schema.tree, allResolved)
+	if jsonMap == nil {
+		// if the whole tree is empty, still return an empty JSON object
+		jsonMap = make(map[string]interface{}, 0)
+	}
+	jsonData, err := json.MarshalIndent(jsonMap, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	if Verbose {
+		log.Println(color.BlueString("Generated value for key '%s':\n%s\n", h.key, string(jsonData)))
+	}
+	bucket[h.key] = []byte(base64.StdEncoding.EncodeToString(jsonData))
 }
 
 type semaHandlerEnvironmentVariables struct {

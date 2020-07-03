@@ -45,9 +45,18 @@ func init() {
 	parser.UnknownOptionHandler = cliParseFromHandlers
 }
 
+// CreatePrefix is used by --from-sema-schema-to-file amongst others
+var CreatePrefix string
+
+// Verbose is used by --from-sema-schema-to-file amongst others
+var Verbose bool
+
 // Execute of CreateCommand is the 'sema create' command
 func (opts *CreateCommand) Execute(args []string) error {
+	// Globally retrieved variables:
 	GcloudProject = opts.Positional.Project
+	CreatePrefix = opts.Prefix
+	Verbose = len(opts.Verbose) > 0
 
 	// Give all handlers a go to write to the secret data
 	data := make(map[string][]byte, 0)
