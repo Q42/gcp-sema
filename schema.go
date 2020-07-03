@@ -21,13 +21,14 @@ func parseSchema(data []byte) convictConfigSchema {
 
 	return convictConfigSchema{
 		// rawJSONSchema:      data,
+		tree:               dest,
 		flatConfigurations: convictRecursiveResolve(dest),
 	}
 }
 
 type convictJSONTree struct {
 	Leaf     *convictConfiguration
-	Children []*convictJSONTree
+	Children map[string]*convictJSONTree
 }
 
 func (tree *convictJSONTree) Nest(key string) {
@@ -68,30 +69,20 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 	}
 
 	// Else, this is a nested tree, parse items as nested things
-	childs := map[string]*convictJSONTree{}
-	err = json5.Unmarshal(data, &childs)
+	tree.Children = map[string]*convictJSONTree{}
+	err = json5.Unmarshal(data, &tree.Children)
+	for key, c := range tree.Children {
+		c.Nest(key)
+	}
 	if err != nil {
 		return err
 	}
-
-	// Apply stable ordering of tree.Children,
-	// otherwise testing is a nightmare.
-	keys := []string{}
-	for key := range childs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		v := childs[key]
-		v.Nest(key)
-		tree.Children = append(tree.Children, v)
-	}
-
 	return nil
 }
 
 type convictConfigSchema struct {
 	rawJSONSchema      []byte
+	tree               *convictJSONTree
 	flatConfigurations []convictConfiguration
 }
 
@@ -151,7 +142,15 @@ func convictRecursiveResolve(data *convictJSONTree) []convictConfiguration {
 	if data.Leaf != nil {
 		configs = append(configs, *data.Leaf)
 	}
-	for _, v := range data.Children {
+	// Apply stable ordering of tree.Children,
+	// otherwise testing is a nightmare.
+	var keys = make([]string, 0)
+	for key := range data.Children {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		v := data.Children[key]
 		configs = append(configs, convictRecursiveResolve(v)...)
 	}
 	return configs
