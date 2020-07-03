@@ -1,10 +1,10 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/fatih/color"
 )
@@ -93,7 +93,7 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	if Verbose {
 		log.Println(color.BlueString("Generated value for key '%s':\n%s\n", h.key, string(jsonData)))
 	}
-	bucket[h.key] = []byte(base64.StdEncoding.EncodeToString(jsonData))
+	bucket[h.key] = jsonData
 }
 
 type semaHandlerEnvironmentVariables struct {
@@ -101,11 +101,23 @@ type semaHandlerEnvironmentVariables struct {
 }
 
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
-	// TODO read config-schema.json, find a secret for each key / or rely on defaults
-	// Put each key / env in their own literal
-	bucket["LOG_LEVEL"] = []byte("info")
-	bucket["PORT"] = []byte("8080")
-	panic("Not implemented!")
+	availableSecretKeys := getAllSecretsInProject()
+	schema := parseSchemaFile(h.configSchemaFile)
+	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
+
+	// Shove secrets in all possible environment variables
+	for _, conf := range schema.flatConfigurations {
+		key := strings.Join(conf.Path, ".")
+		if r, isSet := allResolved[key]; isSet && conf.Env != "" {
+			val := r.GetSecretValue()
+			if val != nil {
+				bucket[conf.Env] = []byte(*val)
+				if Verbose {
+					log.Println(color.BlueString("$%s=%s\n", conf.Env, val))
+				}
+			}
+		}
+	}
 }
 
 type semaHandlerLiteral struct {
