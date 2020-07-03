@@ -9,13 +9,16 @@ import (
 func TestSchemaParsing(t *testing.T) {
 	config := parseSchema([]byte(`{
   "log": {
-    "level": { "format": "string", "default": "info", "env": "LOG_LEVEL" },
+    "level": { "format": "String", "default": "info", "env": "LOG_LEVEL" },
     "format": { "format": ["json", "text"], "default": "json", "env": "LOG_FORMAT" }
   }
 }`))
 
+	logFormat := convictFormatString{actualFormat: []interface{}{"json", "text"}, possibleValues: []string{"json", "text"}}
+	logLevel := convictFormatString{actualFormat: "String"}
+
 	assert.Equal(t, []convictConfiguration{
-		{Path: []string{"log", "format"}, Format: "json,text", DefaultValue: "json", Doc: "", Env: "LOG_FORMAT"},
-		{Path: []string{"log", "level"}, Format: "string", DefaultValue: "info", Doc: "", Env: "LOG_LEVEL"},
+		{Path: []string{"log", "format"}, Format: logFormat, DefaultValue: "json", Doc: "", Env: "LOG_FORMAT"},
+		{Path: []string{"log", "level"}, Format: logLevel, DefaultValue: "info", Doc: "", Env: "LOG_LEVEL"},
 	}, config.flatConfigurations, "")
 }
