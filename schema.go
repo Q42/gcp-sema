@@ -6,30 +6,29 @@ import (
 	"sort"
 
 	"github.com/flynn/json5"
+	"github.com/go-errors/errors"
 )
 
 func parseSchemaFile(schemaFile string) convictConfigSchema {
 	data, err := ioutil.ReadFile(schemaFile)
 	panicIfErr(err)
-	defer func() {
-		// Catch any panic errors down the line
-		if r := recover(); r != nil {
-			panic(fmt.Errorf("cannot parse schema '%s': %v", schemaFile, r))
-		}
-	}()
-	return parseSchema(data)
+	var schema convictConfigSchema
+	schema, err = parseSchema(data)
+	if err != nil {
+		panic(errors.WrapPrefix(err, fmt.Sprintf("cannot parse schema '%s'", schemaFile), 0))
+	}
+	return schema
 }
 
-func parseSchema(data []byte) convictConfigSchema {
+func parseSchema(data []byte) (result convictConfigSchema, err error) {
 	dest := &convictJSONTree{}
-	err := json5.Unmarshal(data, &dest)
-	panicIfErr(err)
-
-	return convictConfigSchema{
+	err = json5.Unmarshal(data, &dest)
+	result = convictConfigSchema{
 		// rawJSONSchema:      data,
 		tree:               dest,
 		flatConfigurations: convictRecursiveResolve(dest),
 	}
+	return
 }
 
 type convictJSONTree struct {
@@ -54,7 +53,10 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 	// Parse to decide if it is a convict propery
 	err := json5.Unmarshal(data, &convict)
 	if err != nil {
-		return err
+		// Ignore errors like this!
+		// A map could contain an additional key like `doc: "some explanation"`,
+		// where "some explanation" does not fit the struct above
+		return nil
 	}
 
 	// This is a convict configuration property: parse as map[string]interface{}
@@ -78,12 +80,13 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 	tree.Children = map[string]*convictJSONTree{}
 	err = json5.Unmarshal(data, &tree.Children)
 	for key, c := range tree.Children {
-		c.Nest(key)
+		if c != nil {
+			c.Nest(key)
+		} else {
+			delete(tree.Children, key) // prevents issues down the line
+		}
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type convictConfigSchema struct {
@@ -152,6 +155,10 @@ func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictF
 }
 
 func convictRecursiveResolve(data *convictJSONTree) []convictConfiguration {
+	if data == nil {
+		return nil
+	}
+
 	configs := []convictConfiguration{}
 	if data.Leaf != nil {
 		configs = append(configs, *data.Leaf)

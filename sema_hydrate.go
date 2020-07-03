@@ -3,6 +3,9 @@ package main
 import "strings"
 
 func hydrateSecretTree(tree *convictJSONTree, resolved map[string]resolvedSecret) interface{} {
+	if tree == nil {
+		return nil
+	}
 	if tree.Leaf != nil {
 		resolved := resolved[strings.Join(tree.Leaf.Path, ".")]
 		if resolved == nil {

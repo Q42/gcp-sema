@@ -7,12 +7,15 @@ import (
 )
 
 func TestSchemaParsing(t *testing.T) {
-	config := parseSchema([]byte(`{
+	config, err := parseSchema([]byte(`{
   "log": {
+    "doc": "Some properties here regarding logging",
     "level": { "format": "String", "default": "info", "env": "LOG_LEVEL" },
-    "format": { "format": ["json", "text"], "default": "json", "env": "LOG_FORMAT" }
+    "format": { "format": ["json", "text"], "default": "json", "env": "LOG_FORMAT" },
+    "invalidKeyIsIgnored": null
   }
 }`))
+	assert.Equal(t, nil, err)
 
 	logFormat := convictFormatString{actualFormat: []interface{}{"json", "text"}, possibleValues: []string{"json", "text"}}
 	logLevel := convictFormatString{actualFormat: "String"}
