@@ -33,7 +33,9 @@ sema render \
   # extract according to schema into environment variable literals
   --from-sema-schema-to-literals=config-schema.json \
   # extract key value from SeMa into literals
-  --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
+  --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW \
+
+  my-project
 ```
 
 ## Developing & debugging
