@@ -54,6 +54,9 @@ func getLastSecretVersion(name string) string {
 		}
 	}
 	versions = sortVersions(versions)
+	if len(versions) == 0 {
+		return ""
+	}
 	return versions[0].Name
 }
 
