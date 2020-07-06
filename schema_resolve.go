@@ -93,6 +93,11 @@ type semaNotFoundError struct {
 	suggestedKeys []string
 }
 
+func (e semaNotFoundError) Is(err error) bool {
+	_, isSameType := err.(semaNotFoundError)
+	return isSameType
+}
+
 func (e semaNotFoundError) Error() string {
 	return fmt.Sprintf("%s; Secret Manager keys: %q", strings.Join(e.conf.Path, "."), e.suggestedKeys)
 }
@@ -133,6 +138,12 @@ func schemaResolveSecrets(schema convictConfigSchema, availableSecretKeys []stri
 		log.Println(color.RedString("No secret value resolved for:"))
 		for _, err := range allErrors {
 			log.Println(color.RedString("- %s", err.Error()))
+			if errors.Is(err, semaNotFoundError{}) {
+				log.Println(color.RedString("  format: %s", err.(semaNotFoundError).conf.Format.String()))
+			}
+			if errors.Is(err, semaNotFoundError{}) && err.(semaNotFoundError).conf.Doc != "" {
+				log.Println(color.RedString("  doc: %s", err.(semaNotFoundError).conf.Doc))
+			}
 		}
 		log.Println()
 	}
