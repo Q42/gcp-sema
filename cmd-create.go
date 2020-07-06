@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
@@ -66,13 +67,13 @@ func (opts *CreateCommand) Execute(args []string) error {
 
 	// Preamble, depending on the format
 	if opts.Format == "yaml" {
-		os.Stdout.WriteString(`kind: Secret
+		os.Stdout.WriteString(fmt.Sprintf(`kind: Secret
 apiVersion: v1
 metadata:
-  name: mysecret
+  name: %s
 type: Opaque
 data:
-`)
+`, strconv.Quote(opts.Name)))
 	}
 
 	// Print all values in the correct format
@@ -96,6 +97,7 @@ type CreateCommand struct {
 	Format   string          `short:"o" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose)."`
 	Prefix   string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 	Handlers []SecretHandler `no-flag:"y"`
+	Name     string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
 }
 
 // For testing, repeatably executable
