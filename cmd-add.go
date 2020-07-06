@@ -4,10 +4,16 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"syscall"
 
+	"github.com/go-errors/errors"
 	"golang.org/x/crypto/ssh/terminal"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"google.golang.org/genproto/protobuf/field_mask"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func init() {
@@ -19,14 +25,61 @@ type addCommand struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 		Name    string `long:"name" default:"mysecretkey" description:"Name of secret key"`
 	} `positional-args:"yes"`
-	Verbose []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Prefix  string `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+	Labels  map[string]string `short:"l" long:"label" description:"set labels using --label=foo:bar"`
+	Force   []bool            `short:"f" long:"force" description:"force overwrite labels"`
+	Verbose []bool            `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Prefix  string            `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 }
 
-func (*addCommand) Execute(args []string) error {
-	var secret string
+func (opts *addCommand) Execute(args []string) (err error) {
+	secretValue := readStringSilently("Enter secret value: ")
+	var secret *secretmanagerpb.Secret
+	var version string
+	secret, err = client.GetSecret(ctx, &secretmanagerpb.GetSecretRequest{
+		Name: fmt.Sprintf("projects/%s/secrets/%s", opts.Positional.Project, opts.Positional.Name),
+	})
+
+	if secret == nil || status.Convert(err).Code() == codes.NotFound {
+		_, err := client.CreateSecret(ctx, &secretmanagerpb.CreateSecretRequest{
+			Parent:   fmt.Sprintf("projects/%s", opts.Positional.Project),
+			SecretId: opts.Positional.Name,
+			Secret: &secretmanagerpb.Secret{
+				Labels: opts.Labels, Replication: &secretmanagerpb.Replication{
+					Replication: &secretmanagerpb.Replication_Automatic_{},
+				}},
+		})
+		if err != nil {
+			return err
+		}
+	} else if !reflect.DeepEqual(secret.Labels, opts.Labels) {
+		if len(opts.Force) > 0 {
+			secret.Labels = opts.Labels
+			secret, err = client.UpdateSecret(ctx, &secretmanagerpb.UpdateSecretRequest{
+				Secret:     secret,
+				UpdateMask: &field_mask.FieldMask{Paths: []string{"labels"}},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			return errors.New("Please use --force to update labels of already existing secret")
+		}
+	}
+
+	version, err = writeSecretVersion(opts.Positional.Project, opts.Positional.Name, secretValue)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Written", version)
+	return nil
+}
+
+// readStringSilently will ensure that if you type the password on the commandline,
+// the value is not copied to the output framebuffer, by using `terminal.ReadPassword`.
+func readStringSilently(prompt string) (secret string) {
 	if terminal.IsTerminal(syscall.Stdin) {
-		fmt.Print("Enter secret value: ")
+		log.Printf(prompt)
 		bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			log.Fatal(err)
@@ -37,7 +90,5 @@ func (*addCommand) Execute(args []string) error {
 		password, _ := reader.ReadString('\n')
 		secret = strings.Trim(password, "\n\r")
 	}
-	log.Println(secret)
-
-	return nil
+	return
 }

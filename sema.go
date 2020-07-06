@@ -74,3 +74,32 @@ func getSecretValue(projectNameVersion string) *secretmanagerpb.SecretPayload {
 	panicIfErr(err)
 	return resp.Payload
 }
+
+func createSecret(project, name string, labels map[string]string) (string, error) {
+	resp, err := client.CreateSecret(ctx, &secretmanagerpb.CreateSecretRequest{
+		Parent:   fmt.Sprintf("projects/%s", project),
+		SecretId: name,
+		Secret: &secretmanagerpb.Secret{
+			Labels: labels, Replication: &secretmanagerpb.Replication{
+				Replication: &secretmanagerpb.Replication_Automatic_{},
+			}},
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.Name, err
+}
+
+// writeSecretVersion updates the value to a new version
+// projectNameVersion is the resource name in the format `projects/*/secrets/*`.
+func writeSecretVersion(project, secretName, value string) (string, error) {
+	req := &secretmanagerpb.AddSecretVersionRequest{
+		Parent:  fmt.Sprintf("projects/%s/secrets/%s", project, secretName),
+		Payload: &secretmanagerpb.SecretPayload{Data: []byte(value)},
+	}
+	resp, err := client.AddSecretVersion(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	return resp.Name, err
+}

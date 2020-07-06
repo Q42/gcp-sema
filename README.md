@@ -36,6 +36,10 @@ sema render \
   --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW \
 
   my-project
+
+$ sema add [project] [secret_name] \
+  # optionally add zero or more labels
+  --label key:value --label foo:bar
 ```
 
 ## Developing & debugging
