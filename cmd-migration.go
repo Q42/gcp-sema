@@ -42,6 +42,7 @@ type migrateCommand struct {
 	Positional struct {
 		Project string `description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
+	Dir                  string `long:"dir" description:"Use this if the config-schema.json is in $dir relative to another directory; example --dir=server"`
 	Prefix               string `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 	KubernetesContext    string `long:"context" description:"Explicitly specify which kubectl context to run in to get the k8s secret."`
 	KubernetesSecretName string `short:"s" long:"kubernetesSecretName" description:"Explicitly specify which k8s secret to migrate to SeMa."`
@@ -65,6 +66,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 	GcloudProject = opts.getProject()
 	path, err := os.Getwd()
 	panicIfErr(err)
+	if opts.Dir != "" {
+		path = fmt.Sprintf("%s/%s", path, opts.Dir)
+	}
 
 	// Collect all config-schema.json
 	deepSchemas := listFilesMatching(path, "config-schema.json", 2)
