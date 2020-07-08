@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -45,6 +47,7 @@ type migrateCommand struct {
 	KubernetesSecretName string `short:"s" long:"kubernetesSecretName" description:"Explicitly specify which k8s secret to migrate to SeMa."`
 	KubernetesSecretCmd  string `short:"c" long:"kubernetesSecretCommand" description:"Explicitly specify which kubectl command to run to get the k8s secret."`
 	Mode                 string `short:"m" long:"mode" default:"literal" choice:"literal" choice:"multi" description:"Defines how secret data is divided over Secret Manager secrets"`
+	Force                []bool `short:"f" long:"force" description:"Overwrite existing secret & labels"`
 }
 
 // Execute runs the migration command
@@ -193,6 +196,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 	for _, action := range actions {
 		log.Println("-", action.Explainer())
 	}
+	log.Println()
 
 	if prompt("Continue? [y/N] ") != "y" {
 		color.Red("Aborted")
@@ -312,7 +316,9 @@ func (a manualAction) Func() func() error {
 
 func (a *addCommand) Explainer() string {
 	length := len(a.Data)
-	shasum := ""
+	h := sha1.New()
+	h.Write([]byte(a.Data))
+	shasum := hex.EncodeToString(h.Sum(nil))
 	return fmt.Sprintf("Upload secret %q to SecretManager (length=%d, sha1sum=%s)", a.Positional.Name, length, shasum)
 }
 
