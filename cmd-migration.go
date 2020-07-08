@@ -337,8 +337,8 @@ func prompt(name string) string {
 func convictToSemaKey(prefix string, path []string) []string {
 	if prefix != "" {
 		return []string{
-			strings.Join(path, "_"),
 			strings.Join(append([]string{prefix}, path...), "_"),
+			strings.Join(path, "_"),
 		}
 	}
 	return []string{
