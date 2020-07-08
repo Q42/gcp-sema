@@ -20,19 +20,23 @@ func init() {
 	parser.AddCommand("add", "Add a secret value to Secret Manager from the command-line", "", &addCommand{})
 }
 
+type addCommandPositional struct {
+	Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
+	Name    string `long:"name" default:"mysecretkey" description:"Name of secret key"`
+}
+
 type addCommand struct {
-	Positional struct {
-		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
-		Name    string `long:"name" default:"mysecretkey" description:"Name of secret key"`
-	} `positional-args:"yes"`
-	Labels  map[string]string `short:"l" long:"label" description:"set labels using --label=foo:bar"`
-	Force   []bool            `short:"f" long:"force" description:"force overwrite labels"`
-	Verbose []bool            `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Prefix  string            `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+	Positional addCommandPositional `positional-args:"yes"`
+	Labels     map[string]string    `short:"l" long:"label" description:"set labels using --label=foo:bar"`
+	Force      []bool               `short:"f" long:"force" description:"force overwrite labels"`
+	Verbose    []bool               `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Data       string               `hidden:"yes"`
 }
 
 func (opts *addCommand) Execute(args []string) (err error) {
-	secretValue := readStringSilently("Enter secret value: ")
+	if opts.Data == "" {
+		opts.Data = readStringSilently("Enter secret value: ")
+	}
 	var secret *secretmanagerpb.Secret
 	var version string
 	secret, err = client.GetSecret(ctx, &secretmanagerpb.GetSecretRequest{
@@ -66,7 +70,7 @@ func (opts *addCommand) Execute(args []string) (err error) {
 		}
 	}
 
-	version, err = writeSecretVersion(opts.Positional.Project, opts.Positional.Name, secretValue)
+	version, err = writeSecretVersion(opts.Positional.Project, opts.Positional.Name, opts.Data)
 	if err != nil {
 		return err
 	}
