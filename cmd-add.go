@@ -37,11 +37,14 @@ func (opts *addCommand) Execute(args []string) (err error) {
 	if opts.Data == "" {
 		opts.Data = readStringSilently("Enter secret value: ")
 	}
+
+	// Upsert "Secret" (the container)
 	var secret *secretmanagerpb.Secret
 	var version string
 	secret, err = client.GetSecret(ctx, &secretmanagerpb.GetSecretRequest{
 		Name: fmt.Sprintf("projects/%s/secrets/%s", opts.Positional.Project, opts.Positional.Name),
 	})
+	var isExistingSecret = secret != nil
 
 	if secret == nil || status.Convert(err).Code() == codes.NotFound {
 		_, err := client.CreateSecret(ctx, &secretmanagerpb.CreateSecretRequest{
@@ -68,6 +71,11 @@ func (opts *addCommand) Execute(args []string) (err error) {
 		} else {
 			return errors.New("Please use --force to update labels of already existing secret")
 		}
+	}
+
+	// Upsert "Secret Version" (the actual data)
+	if isExistingSecret && len(opts.Force) == 0 {
+		return errors.New("Please use --force to update value of existing secret")
 	}
 
 	version, err = writeSecretVersion(opts.Positional.Project, opts.Positional.Name, opts.Data)
