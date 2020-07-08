@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -9,6 +10,7 @@ import (
 type convictFormat interface {
 	// Coerce will take a string (like environment variable) and convert it into a JSON value
 	Coerce(input string) (interface{}, error)
+	Flatten(input interface{}) (string, error)
 	String() string
 }
 
@@ -19,8 +21,14 @@ func (f convictFormatAny) String() string {
 }
 
 func (f convictFormatAny) Coerce(input string) (interface{}, error) {
+	// TODO: where do we use this; how will it be handled in the app?
 	// this is dangerous, as we wont coerce an arraylike "a,b,c" into an array for example
 	return input, nil
+}
+
+func (f convictFormatAny) Flatten(input interface{}) (string, error) {
+	// TODO: where do we use this; how will it be handled in the app?
+	return fmt.Sprint(input), nil
 }
 
 type convictFormatString struct {
@@ -43,6 +51,10 @@ func (f convictFormatString) Coerce(input string) (interface{}, error) {
 	return input, nil
 }
 
+func (f convictFormatString) Flatten(input interface{}) (string, error) {
+	return fmt.Sprint(input), nil
+}
+
 func (f convictFormatString) String() string {
 	if len(f.possibleValues) > 0 {
 		return "[" + strings.Join(f.possibleValues, ",") + "]"
@@ -59,6 +71,20 @@ func (f convictFormatArray) Coerce(input string) (interface{}, error) {
 func (f convictFormatArray) String() string {
 	return "Array"
 }
+func (f convictFormatArray) Flatten(input interface{}) (string, error) {
+	switch v := input.(type) {
+	case []interface{}:
+		vals := make([]string, 0)
+		for _, i := range v {
+			vals = append(vals, fmt.Sprint(i))
+		}
+		return strings.Join(vals, ","), nil
+	case []string:
+		return strings.Join(v, ","), nil
+	default:
+		return "", fmt.Errorf("Unsupported array type: %q", reflect.TypeOf(input))
+	}
+}
 
 type convictFormatPort struct{}
 type convictFormatBoolean struct{}
@@ -72,6 +98,16 @@ func (f convictFormatBoolean) Coerce(input string) (interface{}, error) {
 }
 func (f convictFormatInt) Coerce(input string) (interface{}, error) {
 	return strconv.ParseInt(input, 10, 64)
+}
+
+func (f convictFormatPort) Flatten(input interface{}) (string, error) {
+	return fmt.Sprint(input), nil
+}
+func (f convictFormatBoolean) Flatten(input interface{}) (string, error) {
+	return strconv.FormatBool(input.(bool)), nil
+}
+func (f convictFormatInt) Flatten(input interface{}) (string, error) {
+	return fmt.Sprint(input), nil
 }
 
 func (f convictFormatPort) String() string {

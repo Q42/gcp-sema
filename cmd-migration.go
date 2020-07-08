@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/flynn/json5"
+	"github.com/go-errors/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -90,6 +92,11 @@ func (opts *migrateCommand) Execute(args []string) error {
 		opts.KubernetesSecretName = legacy.Name
 	}
 
+	// Use the secret name as the prefix in literal mode, unless it is explicitly set
+	if opts.Prefix == "" && opts.Mode == "literal" {
+		opts.Prefix = opts.KubernetesSecretName
+	}
+
 	if opts.KubernetesSecretCmd == "" {
 		if opts.KubernetesContext == "" {
 			opts.KubernetesContext, err = getCommandOutput("kubectl", "config", "current-context")
@@ -115,22 +122,8 @@ func (opts *migrateCommand) Execute(args []string) error {
 		os.Exit(3)
 	}
 
-	// Get all secret names that are available
-	availableSecrets := getAllSecretsInProject()
-
 	// Get secret from Kubernetes
-	k8sSecretData, err := getCommandOutput("sh", "-c", opts.KubernetesSecretCmd)
-	panicIfErr(err)
-	var k8sSecret struct {
-		Metadata struct {
-			Name        string
-			Annotations map[string]string
-			Labels      map[string]string
-		}
-		Data map[string]string
-	}
-	err = json.Unmarshal([]byte(k8sSecretData), &k8sSecret)
-	panicIfErr(err)
+	k8sSecret := opts.getKubernetesSecret()
 	log.Printf(`Found secret %q
   deployer: %q
   updated:  %q
@@ -141,32 +134,43 @@ func (opts *migrateCommand) Execute(args []string) error {
 		k8sSecret.Metadata.Labels["updated"],
 	)
 
+	// Gather all actions so we can give an overview later
 	actions := make([]ProposedAction, 0)
 
 	switch opts.Mode {
 	case "literal":
-		cmd := fmt.Sprintf(`sema create %s --name="%s"`, opts.Positional.Project, opts.KubernetesSecretName)
+		// In literal mode we literally take each Kubernetes secret key/value pair and put it into Secret Manager.
+		// For applications using config-env.json, this means that whole file is stored in 1 single value.
+
+		manualCommand := fmt.Sprintf(`sema render %s --name="%s" `, opts.Positional.Project, opts.KubernetesSecretName)
 		for _, secret := range legacy.Secrets {
-			if k8sSecret.Data[secret.Name] == "" {
-				fmt.Printf("Missing secret with key %q\n", secret.Name)
-				continue
+			var data []byte
+			if base64data, hasKey := k8sSecret.Data[secret.Name]; hasKey {
+				data, err = base64.StdEncoding.DecodeString(base64data)
+				if err != nil {
+					return errors.WrapPrefix(err, fmt.Sprintf("failed to parse %q", secret.Name), 0)
+				}
+			} else {
+				return fmt.Errorf("Configuration .secrets-config.yml contains %q but in Kubernetes this is unavailable", secret.Name)
 			}
-			data, err := base64.StdEncoding.DecodeString(k8sSecret.Data[secret.Name])
-			panicIfErr(err)
-			secretUploadName := strings.Map(allowedCharacters, fmt.Sprintf("%s_%s", opts.KubernetesSecretName, secret.Name))
+			// How it is called in Secret Manager. Note this can be an ugly name, but that is fine. This is migration only!
+			semaName := strings.Map(allowedCharacters, fmt.Sprintf("%s_%s", opts.Prefix, secret.Name))
 			actions = append(actions, &addCommand{
-				Positional: addCommandPositional{Project: opts.Positional.Project, Name: secretUploadName},
+				Positional: addCommandPositional{Project: opts.Positional.Project, Name: semaName},
 				Data:       string(data),
 				Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
 			})
-			cmd = cmd + fmt.Sprintf(` --from-sema-literal="%s=%s"`, secret.Name, secretUploadName)
+			manualCommand += fmt.Sprintf("\\\n --from-sema-literal=\"%s=%s\"", secret.Name, semaName)
 		}
 
 		actions = append(actions, manualAction{
-			Action: fmt.Sprintf(`Manual: update config to run: %s`, cmd),
+			Action: fmt.Sprintf("Manual: update config to run:\n%s", color.BlueString(manualCommand)),
 		})
 
 	case "multi":
+		// Get all secret names that are available
+		availableSecrets := getAllSecretsInProject()
+
 		// Show all configuration options, suggested SecretManager keys
 		// and which are already set.
 
@@ -188,8 +192,40 @@ func (opts *migrateCommand) Execute(args []string) error {
 				log.Printf("\t%s\n", color.BlueString(conf.Doc))
 			}
 			// print all possible keys we'll look for later
+			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, strings.Join(conf.Path, "."))
+			usedConfigEnvValue := false
+			if node, exists := k8sSecret.Lookup(conf); exists == nil {
+				ok, err := isSafeCoercible(node, conf)
+				if ok {
+					log.Println("\t- ", color.GreenString(configEnvName))
+					usedConfigEnvValue = true
+					semaName := convictToSemaKey(opts.Prefix, conf.Path)[0]
+					data, _ := conf.Format.Flatten(node)
+					actions = append(actions, &addCommand{
+						Positional: addCommandPositional{Project: opts.Positional.Project, Name: semaName},
+						Data:       data,
+						Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
+					})
+				} else {
+					log.Println("\t- ", color.RedString(configEnvName), errors.WrapPrefix(err, "value not safe to convert to string", 0))
+				}
+			} else {
+				log.Println("\t- ", color.RedString(configEnvName))
+			}
+
+			usedSemaKey := false
 			for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
-				log.Println("\t- ", colorBasedOnAvailability(availableSecrets, suggestion))
+				if isListElement(availableSecrets, suggestion) {
+					if !usedConfigEnvValue && !usedSemaKey {
+						usedSemaKey = true
+						actions = append(actions, &manualAction{
+							Action: fmt.Sprintf("validate Secret Manager key %q", suggestion),
+						})
+					}
+					log.Println("\t- ", color.GreenString(suggestion))
+				} else {
+					log.Println("\t- ", color.RedString(suggestion))
+				}
 			}
 		}
 	default:
@@ -207,6 +243,15 @@ func (opts *migrateCommand) Execute(args []string) error {
 		os.Exit(127)
 	}
 
+	for _, action := range actions {
+		err := action.Func()()
+		if err == nil {
+			log.Println("- ✅", action.Explainer())
+		} else {
+			log.Println("- 🚨", err)
+		}
+	}
+
 	// // Dummy:
 	// GcloudProject = "my-project"
 	// secrets := getAllSecretsInProject()
@@ -217,6 +262,54 @@ func (opts *migrateCommand) Execute(args []string) error {
 	// 	log.Println("Secret", version, "secret data length =", len(value))
 	// }
 	return nil
+}
+
+type kubernetesSecret struct {
+	Metadata struct {
+		Name        string
+		Annotations map[string]string
+		Labels      map[string]string
+	}
+	Data           map[string]string
+	configEnvCache map[string]interface{}
+}
+
+func (opts *migrateCommand) getKubernetesSecret() *kubernetesSecret {
+	k8sSecretData, err := getCommandOutput("sh", "-c", opts.KubernetesSecretCmd)
+	panicIfErr(err)
+
+	var k8sSecret kubernetesSecret
+	err = json.Unmarshal([]byte(k8sSecretData), &k8sSecret)
+	panicIfErr(err)
+	return &k8sSecret
+}
+
+func (s *kubernetesSecret) Lookup(conf convictConfiguration) (interface{}, error) {
+	if s.configEnvCache == nil {
+		s.configEnvCache = make(map[string]interface{})
+		// naive: this can be renamed inside apps!
+		if data, isSet := s.Data["config-env.json"]; isSet {
+			var bytes []byte
+			bytes, err := base64.StdEncoding.DecodeString(data)
+			if err != nil {
+				return nil, err
+			}
+			err = json5.Unmarshal(bytes, &s.configEnvCache)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var node interface{} = s.configEnvCache
+	for _, key := range conf.Path {
+		switch v := node.(type) {
+		case map[string]interface{}:
+			node = v[key]
+		default:
+			return nil, fmt.Errorf("config-env.json contains no property at %q", conf.Path)
+		}
+	}
+	return node, nil
 }
 
 func (opts *migrateCommand) getProject() string {
@@ -251,6 +344,15 @@ func convictToSemaKey(prefix string, path []string) []string {
 	return []string{
 		strings.Join(path, "_"),
 	}
+}
+
+func isListElement(availables []string, suggestion string) bool {
+	for _, available := range availables {
+		if suggestion == available {
+			return true
+		}
+	}
+	return false
 }
 
 func colorBasedOnAvailability(availables []string, suggestion string) string {
@@ -330,4 +432,21 @@ func (a *addCommand) Func() func() error {
 	return func() error {
 		return a.Execute([]string{})
 	}
+}
+
+// Detects if a configuration value will survive being serialized to string
+func isSafeCoercible(node interface{}, conf convictConfiguration) (bool, error) {
+	value, err := conf.Format.Flatten(node)
+	if err != nil {
+		return false, err
+	}
+	nodeConverted, err := conf.Format.Coerce(value)
+	if err != nil {
+		return false, err
+	}
+	nextValue, err := conf.Format.Flatten(nodeConverted)
+	if err != nil {
+		return false, err
+	}
+	return nextValue == value, nil
 }
