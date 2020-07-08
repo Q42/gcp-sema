@@ -28,7 +28,7 @@ type addCommandPositional struct {
 type addCommand struct {
 	Positional addCommandPositional `positional-args:"yes"`
 	Labels     map[string]string    `short:"l" long:"label" description:"set labels using --label=foo:bar"`
-	Force      []bool               `short:"f" long:"force" description:"force overwrite labels"`
+	Force      []bool               `short:"f" long:"force" description:"force overwrite value/labels"`
 	Verbose    []bool               `short:"v" long:"verbose" description:"Show verbose debug information"`
 	Data       string               `hidden:"yes"`
 }
@@ -59,17 +59,17 @@ func (opts *addCommand) Execute(args []string) (err error) {
 			return err
 		}
 	} else if !reflect.DeepEqual(secret.Labels, opts.Labels) {
-		if len(opts.Force) > 0 {
-			secret.Labels = opts.Labels
-			secret, err = client.UpdateSecret(ctx, &secretmanagerpb.UpdateSecretRequest{
-				Secret:     secret,
-				UpdateMask: &field_mask.FieldMask{Paths: []string{"labels"}},
-			})
-			if err != nil {
-				return err
-			}
-		} else {
-			return errors.New("Please use --force to update labels of already existing secret")
+		if len(opts.Force) == 0 {
+			log.Println("Existing labels:", formatLabels(secret.Labels))
+			return errors.New("Please set the same labels, or use --force to update the already existing secret")
+		}
+		secret.Labels = opts.Labels
+		secret, err = client.UpdateSecret(ctx, &secretmanagerpb.UpdateSecretRequest{
+			Secret:     secret,
+			UpdateMask: &field_mask.FieldMask{Paths: []string{"labels"}},
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -103,4 +103,12 @@ func readStringSilently(prompt string) (secret string) {
 		secret = strings.Trim(password, "\n\r")
 	}
 	return
+}
+
+func formatLabels(mp map[string]string) string {
+	labels := make([]string, 0)
+	for k, v := range mp {
+		labels = append(labels, fmt.Sprintf("-l %s:%s", k, v))
+	}
+	return strings.Join(labels, " ")
 }
