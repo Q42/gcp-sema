@@ -11,7 +11,7 @@ import (
 
 func schemaResolveSecret(conf convictConfiguration, availableSecretKeys []string) (result resolvedSecret, options []resolvedSecret, err error) {
 	// enumerate all places we want to look for this secret
-	suggestedKeys := convictToSemaKey(CreatePrefix, conf.Path)
+	suggestedKeys := convictToSemaKey(RenderPrefix, conf.Path)
 
 	for _, suggestedKey := range suggestedKeys {
 		options = append(options, resolvedSecretSema{key: suggestedKey})

@@ -15,11 +15,11 @@ var (
 	// formats of cli-arg is "{reArgName}{reArgValue}"
 	reArgName     = regexp.MustCompile(`from-([^=]+)`)
 	reArgValue    = regexp.MustCompile(`([^=]+)(=([^=]+))?`)
-	createCommand = &CreateCommand{}
+	renderCommand = &RenderCommand{}
 )
 
-var createDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
-var createDescriptionLong = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
+var renderDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
+var renderDescriptionLong = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
 
 There are multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value].
 The following options are implemented:
@@ -41,22 +41,22 @@ The following options are implemented:
 `
 
 func init() {
-	_, err := parser.AddCommand("create", createDescription, createDescriptionLong, createCommand)
+	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommand)
 	panicIfErr(err)
 	parser.UnknownOptionHandler = cliParseFromHandlers
 }
 
-// CreatePrefix is used by --from-sema-schema-to-file amongst others
-var CreatePrefix string
+// RenderPrefix is used by --from-sema-schema-to-file amongst others
+var RenderPrefix string
 
 // Verbose is used by --from-sema-schema-to-file amongst others
 var Verbose bool
 
-// Execute of CreateCommand is the 'sema create' command
-func (opts *CreateCommand) Execute(args []string) error {
+// Execute of RenderCommand is the 'sema render' command
+func (opts *RenderCommand) Execute(args []string) error {
 	// Globally retrieved variables:
 	GcloudProject = opts.Positional.Project
-	CreatePrefix = opts.Prefix
+	RenderPrefix = opts.Prefix
 	Verbose = len(opts.Verbose) > 0
 
 	// Give all handlers a go to write to the secret data
@@ -88,8 +88,8 @@ data:
 	return nil
 }
 
-// CreateCommand describes how to use the create command
-type CreateCommand struct {
+// RenderCommand describes how to use the render command
+type RenderCommand struct {
 	Positional struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
@@ -101,15 +101,15 @@ type CreateCommand struct {
 }
 
 // For testing, repeatably executable
-func parseCreateArgs(args []string) CreateCommand {
-	opts := CreateCommand{}
+func parseRenderArgs(args []string) RenderCommand {
+	opts := RenderCommand{}
 	parser := flags.NewParser(&opts, flags.Default)
 	parser.UnknownOptionHandler = cliParseFromHandlers
 
 	// Do it
-	createCommand.Handlers = []SecretHandler{}
+	renderCommand.Handlers = []SecretHandler{}
 	_, err := parser.ParseArgs(args)
-	opts.Handlers = createCommand.Handlers
+	opts.Handlers = renderCommand.Handlers
 	if err != nil {
 		os.Exit(1)
 	}
@@ -129,7 +129,7 @@ func cliParseFromHandlers(option string, arg flags.SplitArgument, args []string)
 				}
 			}()
 			handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
-			createCommand.Handlers = append(createCommand.Handlers, handler)
+			renderCommand.Handlers = append(renderCommand.Handlers, handler)
 			return args, nil
 		}
 	}

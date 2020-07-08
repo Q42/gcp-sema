@@ -45,5 +45,5 @@ $ sema add [project] [secret_name] \
 ## Developing & debugging
 Use this for a quick test:
 ```bash
-$ make build-local && ./bin/sema create --from-literal=test.txt=value
+$ make build-local && ./bin/sema render --from-literal=test.txt=value
 ```
