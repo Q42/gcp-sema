@@ -233,7 +233,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 			}
 		}
 
-		manualCommand := fmt.Sprintf(`sema render %s --name="%s"`, opts.Positional.Project, opts.KubernetesSecretName)
+		manualCommand := fmt.Sprintf(`sema render %s --name="%s" --prefix="%s"`, opts.Positional.Project, opts.KubernetesSecretName, opts.Prefix)
 		manualCommand += fmt.Sprintf("\\\n  --from-sema-schema-to-file=config-env.json=%s", schemaPath)
 		actions = append(actions, manualAction{
 			Action: fmt.Sprintf("Manual: update config to run:\n%s", color.BlueString(manualCommand)),
