@@ -11,6 +11,7 @@ func TestParseRenderArgs(t *testing.T) {
 	// format: "--from-[handler]=[key]=[source]"
 	args := parseRenderArgs([]string{
 		"my-project",
+		"--name=very-secret",
 		// literals just like kubectl create secret
 		"--from-literal=myfile.txt=literal-value",
 		// plain files just like kubectl create secret
@@ -25,6 +26,7 @@ func TestParseRenderArgs(t *testing.T) {
 
 	expected := RenderCommand{
 		Format: "yaml",
+		Name:   "very-secret",
 		Handlers: []SecretHandler{
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
