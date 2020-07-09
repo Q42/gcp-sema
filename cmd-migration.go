@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -66,10 +67,11 @@ func (opts *migrateCommand) Execute(args []string) error {
 	fmt.Println()
 
 	GcloudProject = opts.getProject()
-	path, err := os.Getwd()
+	workingDir, err := os.Getwd()
 	panicIfErr(err)
+	path := workingDir
 	if opts.Dir != "" {
-		path = fmt.Sprintf("%s/%s", path, opts.Dir)
+		path = filepath.Join(path, opts.Dir)
 	}
 
 	// Collect all config-schema.json
@@ -85,6 +87,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 		color.Red("No config-schema.json in this directory")
 		os.Exit(1)
 	}
+	schemaPath, _ := filepath.Rel(workingDir, schemas[0])
 
 	legacy, err := getLegacySecretConfiguration()
 	panicIfErr(err)
@@ -115,7 +118,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 - sema prefix: %q
 - mode:        %s
 
-`, opts.Positional.Project, opts.KubernetesContext, opts.KubernetesSecretName, opts.KubernetesSecretCmd, schemas[0], opts.Prefix, opts.Mode)
+`, opts.Positional.Project, opts.KubernetesContext, opts.KubernetesSecretName, opts.KubernetesSecretCmd, schemaPath, opts.Prefix, opts.Mode)
 
 	if !strings.HasPrefix(opts.KubernetesContext, "gke_"+opts.Positional.Project) {
 		color.Red("Cowardly refusing to migrate secret from cluster %q to GCP project %q.\nAre you sure this is the desired kubectl cluster context and project?\nYou can override the command (-c) if you really need to.", opts.KubernetesContext, opts.Positional.Project)
@@ -171,10 +174,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 		// Get all secret names that are available
 		availableSecrets := getAllSecretsInProject()
 
-		// Show all configuration options, suggested SecretManager keys
-		// and which are already set.
-
-		for idx, conf := range parseSchemaFile(schemas[0]).flatConfigurations {
+		// List all configuration options, including existing values in config-env.json
+		// and the suggested SecretManager keys and which of those are already set.
+		for idx, conf := range parseSchemaFile(schemaPath).flatConfigurations {
 			// print: 1: LOGLEVEL (format: [none,debug,info,warn,error], env: LOGLEVEL)
 			infos := make([]string, 0)
 			if conf.Format != nil {
@@ -191,9 +193,12 @@ func (opts *migrateCommand) Execute(args []string) error {
 			if conf.Doc != "" {
 				log.Printf("\t%s\n", color.BlueString(conf.Doc))
 			}
+
 			// print all possible keys we'll look for later
-			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, strings.Join(conf.Path, "."))
 			usedConfigEnvValue := false
+			usedSemaKey := false
+
+			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, strings.Join(conf.Path, "."))
 			if node, exists := k8sSecret.Lookup(conf); exists == nil {
 				ok, err := isSafeCoercible(node, conf)
 				if ok {
@@ -213,7 +218,6 @@ func (opts *migrateCommand) Execute(args []string) error {
 				log.Println("\t- ", color.RedString(configEnvName))
 			}
 
-			usedSemaKey := false
 			for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
 				if isListElement(availableSecrets, suggestion) {
 					if !usedConfigEnvValue && !usedSemaKey {
@@ -228,6 +232,12 @@ func (opts *migrateCommand) Execute(args []string) error {
 				}
 			}
 		}
+
+		manualCommand := fmt.Sprintf(`sema render %s --name="%s"`, opts.Positional.Project, opts.KubernetesSecretName)
+		manualCommand += fmt.Sprintf("\\\n  --from-sema-schema-to-file=config-env.json=%s", schemaPath)
+		actions = append(actions, manualAction{
+			Action: fmt.Sprintf("Manual: update config to run:\n%s", color.BlueString(manualCommand)),
+		})
 	default:
 		log.Fatalf("Invalid mode %s", opts.Mode)
 	}
