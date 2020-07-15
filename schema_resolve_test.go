@@ -19,6 +19,9 @@ func TestSchemaResolving(t *testing.T) {
 	config, err := parseSchema([]byte(exampleSchema2))
 	assert.Equal(t, nil, err)
 
+	secretManagerNonprefixed := []string{"projects/foobar/secrets/redis_shards"}
+	secretManagerPrefixed := []string{"projects/foobar/secrets/myapp4_redis_shards"}
+
 	resolved := schemaResolveSecrets(config, nil)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["redis.shards"])
@@ -32,13 +35,13 @@ func TestSchemaResolving(t *testing.T) {
 
 	// Non prefixed
 	RenderPrefix = ""
-	result, _, err := schemaResolveSecret(shardConfig, []string{"redis_shards"})
+	result, _, err := schemaResolveSecret(shardConfig, secretManagerNonprefixed)
 	assert.Equal(t, resolvedSecretSema{key: "redis_shards"}, result)
 	assert.Equal(t, nil, err)
 
 	// Prefixed
 	RenderPrefix = "myapp4"
-	result, _, err = schemaResolveSecret(shardConfig, []string{"myapp4_redis_shards"})
+	result, _, err = schemaResolveSecret(shardConfig, secretManagerPrefixed)
 	assert.IsType(t, resolvedSecretSema{}, result)
 	assert.Equal(t, resolvedSecretSema{key: "myapp4_redis_shards"}, result)
 	assert.Equal(t, nil, err)
@@ -49,7 +52,7 @@ func TestSchemaResolving(t *testing.T) {
 
 	// Non prefixed
 	RenderPrefix = ""
-	resolved = schemaResolveSecrets(config, []string{"redis_shards"})
+	resolved = schemaResolveSecrets(config, secretManagerNonprefixed)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: logConfig}, resolved["log.level"])
@@ -57,7 +60,7 @@ func TestSchemaResolving(t *testing.T) {
 
 	// Prefixed
 	RenderPrefix = "myapp4"
-	resolved = schemaResolveSecrets(config, []string{"myapp4_redis_shards"})
+	resolved = schemaResolveSecrets(config, secretManagerPrefixed)
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretSema{key: "myapp4_redis_shards"}, resolved["redis.shards"])
 }

@@ -76,7 +76,7 @@ type semaHandlerSingleKey struct {
 
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	availableSecretKeys := getAllSecretsInProject()
-	mapStrings(availableSecretKeys, trimPrefix) // otherwise they wont match during 'schemaResolveSecrets'
+	mapStrings(availableSecretKeys, trimPathPrefix) // otherwise they wont match during 'schemaResolveSecrets'
 
 	schema := parseSchemaFile(h.configSchemaFile)
 	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
@@ -133,7 +133,7 @@ func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"
-func trimPrefix(path string) string {
+func trimPathPrefix(path string) string {
 	return path[strings.LastIndex(path, "/")+1:]
 }
 

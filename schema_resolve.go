@@ -24,7 +24,7 @@ func schemaResolveSecret(conf convictConfiguration, availableSecretKeys []string
 		// enumerate all secrets that we have set in SecretManager
 		for _, availableKey := range availableSecretKeys {
 			// if it matches, return it
-			if availableKey == suggestedKey {
+			if trimPathPrefix(availableKey) == suggestedKey {
 				return resolvedSecretSema{key: suggestedKey}, options, nil
 			}
 		}
