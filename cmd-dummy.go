@@ -8,6 +8,8 @@ type dummyCommand struct{}
 
 // Execute runs the dummy command
 func (*dummyCommand) Execute(args []string) error {
+	prepareSemaClient()
+
 	// Dummy:
 	GcloudProject = "my-project"
 	secrets := getAllSecretsInProject()

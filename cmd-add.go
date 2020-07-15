@@ -34,6 +34,8 @@ type addCommand struct {
 }
 
 func (opts *addCommand) Execute(args []string) (err error) {
+	prepareSemaClient()
+
 	if opts.Data == "" {
 		opts.Data = readStringSilently("Enter secret value: ")
 	}
