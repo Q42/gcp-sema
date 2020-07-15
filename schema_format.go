@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/go-errors/errors"
 )
 
 type convictFormat interface {
@@ -17,7 +19,7 @@ type convictFormat interface {
 type convictFormatAny struct{}
 
 func (f convictFormatAny) String() string {
-	return "*"
+	return "format: *"
 }
 
 func (f convictFormatAny) Coerce(input string) (interface{}, error) {
@@ -46,20 +48,29 @@ func (f convictFormatString) Coerce(input string) (interface{}, error) {
 				return input, nil
 			}
 		}
-		return nil, fmt.Errorf("Invalid value '%s' for format %v", input, f.possibleValues)
+		return nil, fmt.Errorf("Invalid %q value '%s' for format %v", reflect.TypeOf(input), input, f.possibleValues)
 	}
 	return input, nil
 }
 
 func (f convictFormatString) Flatten(input interface{}) (string, error) {
-	return fmt.Sprint(input), nil
+	switch v := input.(type) {
+	case nil:
+		return "", errors.New("not found")
+	case string:
+		return v, nil
+	case *string:
+		return *v, nil
+	default:
+		return "", fmt.Errorf("Invalid %q value %q for string format %v", reflect.TypeOf(input), input, f.actualFormat)
+	}
 }
 
 func (f convictFormatString) String() string {
 	if len(f.possibleValues) > 0 {
-		return "[" + strings.Join(f.possibleValues, ",") + "]"
+		return "format: [" + strings.Join(f.possibleValues, ",") + "]"
 	}
-	return fmt.Sprintf("%v", f.actualFormat)
+	return fmt.Sprintf("format: %v", f.actualFormat)
 }
 
 type convictFormatArray struct {
@@ -69,7 +80,7 @@ func (f convictFormatArray) Coerce(input string) (interface{}, error) {
 	return strings.Split(input, ","), nil
 }
 func (f convictFormatArray) String() string {
-	return "Array"
+	return "format: Array"
 }
 func (f convictFormatArray) Flatten(input interface{}) (string, error) {
 	switch v := input.(type) {
@@ -111,11 +122,11 @@ func (f convictFormatInt) Flatten(input interface{}) (string, error) {
 }
 
 func (f convictFormatPort) String() string {
-	return "port"
+	return "format: port"
 }
 func (f convictFormatBoolean) String() string {
-	return "Boolean"
+	return "format: Boolean"
 }
 func (f convictFormatInt) String() string {
-	return f.actualFormat
+	return fmt.Sprintf("format: %s", f.actualFormat)
 }

@@ -126,6 +126,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 	}
 
 	// Get secret from Kubernetes
+	log.Println("$", opts.KubernetesSecretCmd)
 	k8sSecret := opts.getKubernetesSecret()
 	log.Printf(`Found secret %q
   deployer: %q
@@ -174,13 +175,21 @@ func (opts *migrateCommand) Execute(args []string) error {
 		// Get all secret names that are available
 		availableSecrets := getAllSecretsInProject()
 
+		// Legenda
+		log.Println("Legenda:")
+		log.Printf("x:\t%s %s", color.CyanString("[parameter]"), "(format: [format], default: [val], env: [ENV])")
+		log.Println("\t- [source]", color.RedString("unavailable"))
+		log.Println("\t- [source]", color.GreenString("available"))
+		log.Println("")
+
+		log.Println("Configuration parameters:")
 		// List all configuration options, including existing values in config-env.json
 		// and the suggested SecretManager keys and which of those are already set.
 		for idx, conf := range parseSchemaFile(schemaPath).flatConfigurations {
 			// print: 1: LOGLEVEL (format: [none,debug,info,warn,error], env: LOGLEVEL)
 			infos := make([]string, 0)
 			if conf.Format != nil {
-				infos = append(infos, "format: "+conf.Format.String())
+				infos = append(infos /* "format: " is included! */, conf.Format.String())
 			}
 			if conf.Env != "" {
 				infos = append(infos, "env: "+conf.Env)
@@ -199,23 +208,23 @@ func (opts *migrateCommand) Execute(args []string) error {
 			usedSemaKey := false
 
 			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, strings.Join(conf.Path, "."))
-			if node, exists := k8sSecret.Lookup(conf); exists == nil {
+			if node, err := k8sSecret.Lookup(conf); err == nil {
 				ok, err := isSafeCoercible(node, conf)
 				if ok {
-					log.Println("\t- ", color.GreenString(configEnvName))
 					usedConfigEnvValue = true
 					semaName := convictToSemaKey(opts.Prefix, conf.Path)[0]
 					data, _ := conf.Format.Flatten(node)
+					log.Println("\t- k8s", color.GreenString(configEnvName))
 					actions = append(actions, &addCommand{
 						Positional: addCommandPositional{Project: opts.Positional.Project, Name: semaName},
 						Data:       data,
 						Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
 					})
 				} else {
-					log.Println("\t- ", color.RedString(configEnvName), errors.WrapPrefix(err, "value not safe to convert to string", 0))
+					log.Println("\t- k8s", color.RedString(configEnvName), errors.WrapPrefix(err, "value not safe to convert to string", 0))
 				}
 			} else {
-				log.Println("\t- ", color.RedString(configEnvName))
+				log.Println("\t- k8s", color.RedString(configEnvName))
 			}
 
 			for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
@@ -226,9 +235,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 							Action: fmt.Sprintf("validate Secret Manager key %q", suggestion),
 						})
 					}
-					log.Println("\t- ", color.GreenString(suggestion))
+					log.Println("\t- sema", color.GreenString(suggestion))
 				} else {
-					log.Println("\t- ", color.RedString(suggestion))
+					log.Println("\t- sema", color.RedString(suggestion))
 				}
 			}
 		}
