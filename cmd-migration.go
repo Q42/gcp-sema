@@ -328,6 +328,11 @@ func (s *kubernetesSecret) Lookup(conf convictConfiguration) (interface{}, error
 			return nil, fmt.Errorf("config-env.json contains no property at %q", conf.Path)
 		}
 	}
+
+	// Ensure the last leaf also isn't nil
+	if node == nil {
+		return nil, fmt.Errorf("config-env.json contains no property at %q", conf.Path)
+	}
 	return node, nil
 }
 
