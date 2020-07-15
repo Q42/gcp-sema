@@ -26,6 +26,11 @@ func main() {
 	// Subcommands are added in cmd-*.go files
 	_, err := parser.Parse()
 	if err != nil {
-		os.Exit(1)
+		flagsErr, ok := err.(*flags.Error)
+		if ok && flagsErr.Type == flags.ErrHelp {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
+		}
 	}
 }
