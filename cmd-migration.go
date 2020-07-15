@@ -358,16 +358,17 @@ func prompt(name string) string {
 	return value
 }
 
-func convictToSemaKey(prefix string, path []string) []string {
+func convictToSemaKey(prefix string, path []string) (result []string) {
 	if prefix != "" {
-		return []string{
-			strings.Join(append([]string{prefix}, path...), "_"),
-			strings.Join(path, "_"),
-		}
+		result = append(result, strings.Join(append([]string{strings.ToLower(prefix)}, path...), "_"))
 	}
-	return []string{
-		strings.Join(path, "_"),
+	result = append(result, strings.Join(path, "_"))
+	for i, v := range result {
+		// Sema only allows keys to start with a lowercase character, so lets use only lowercase chars to be consistent!
+		// We are a little more flexible with reading from Secret Manager, so we support old secret uploads that are not in this same case-format.
+		result[i] = strings.ToLower(v)
 	}
+	return
 }
 
 func isListElement(availables []string, suggestion string) bool {
