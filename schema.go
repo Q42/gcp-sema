@@ -138,7 +138,6 @@ func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictF
 		default:
 			panic(fmt.Errorf("Unknown format %s", v))
 		}
-		format = convictFormatString{actualFormat: v}
 	case []interface{}:
 		if strs, isAllString := allStrings(v); isAllString {
 			hasFormat = true
