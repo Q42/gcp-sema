@@ -10,7 +10,8 @@ install: build-local
 
 .PHONY: build-run-test
 build-local: ## Builds using your local Golang installation
-	GO111MODULE=on go build -o bin/sema ./
+	GO111MODULE=on CGO_ENABLED=0 go build -ldflags="-w -s" -o bin/sema ./
+# -ldflags + CGO: https://stackoverflow.com/questions/55106186/no-such-file-or-directory-with-docker-scratch-image
 
 .PHONY: clean
 clean: ## Deletes all locally build binaries again
