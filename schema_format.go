@@ -84,6 +84,10 @@ func (f convictFormatArray) String() string {
 }
 func (f convictFormatArray) Flatten(input interface{}) (string, error) {
 	switch v := input.(type) {
+	case nil:
+		return "", errors.New("not found")
+	case string:
+		return v, nil
 	case []interface{}:
 		vals := make([]string, 0)
 		for _, i := range v {
