@@ -19,6 +19,7 @@ func schemaResolveSecret(conf convictConfiguration, availableSecretKeys []string
 	runtimeOpts := makeRuntimeResolve(conf)
 	options = append(options, runtimeOpts...)
 
+	// Here the keynames in Secret Manager are checked against the keys that are required by config-schema.json
 	for _, suggestedKey := range suggestedKeys {
 		// enumerate all secrets that we have set in SecretManager
 		for _, availableKey := range availableSecretKeys {

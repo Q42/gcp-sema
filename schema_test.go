@@ -6,8 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSchemaParsing(t *testing.T) {
-	config, err := parseSchema([]byte(`{
+const exampleSchema = `{
   "log": {
     "doc": "Some properties here regarding logging",
     "level": { "format": "String", "default": "info", "env": "LOG_LEVEL" },
@@ -18,7 +17,10 @@ func TestSchemaParsing(t *testing.T) {
     "shards": { "default": null, "format": "Array", "doc": "bla", "env": "REDIS_SHARDS" },
     "port": { "default": [6379], "format": "Array" }
   }
-}`))
+}`
+
+func TestSchemaParsing(t *testing.T) {
+	config, err := parseSchema([]byte(exampleSchema))
 	assert.Equal(t, nil, err)
 
 	logFormat := convictFormatString{actualFormat: []interface{}{"json", "text"}, possibleValues: []string{"json", "text"}}

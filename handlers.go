@@ -76,6 +76,8 @@ type semaHandlerSingleKey struct {
 
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	availableSecretKeys := getAllSecretsInProject()
+	mapStrings(availableSecretKeys, trimPrefix) // otherwise they wont match during 'schemaResolveSecrets'
+
 	schema := parseSchemaFile(h.configSchemaFile)
 	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
 
@@ -128,4 +130,17 @@ type semaHandlerLiteral struct {
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 	version := getLastSecretVersion(fmt.Sprintf("projects/%s/secrets/%s", GcloudProject, h.secret))
 	bucket[h.key] = getSecretValue(version).Data
+}
+
+// If the input is a path like "a/long/path/to/something" the output is "something"
+func trimPrefix(path string) string {
+	return path[strings.LastIndex(path, "/")+1:]
+}
+
+// Convert slice in-place
+func mapStrings(slice []string, fn func(string) string) []string {
+	for i, v := range slice {
+		slice[i] = fn(v)
+	}
+	return slice
 }
