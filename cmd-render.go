@@ -84,7 +84,7 @@ data:
 		value := data[key]
 		switch opts.Format {
 		case "env":
-			os.Stdout.WriteString(fmt.Sprintf("%s=%s\n", key, string(value)))
+			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
 		default:
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
 		}
