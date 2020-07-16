@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 
 	"github.com/go-errors/errors"
@@ -79,7 +80,8 @@ data:
 	}
 
 	// Print all values in the correct format
-	for key, value := range data {
+	for _, key := range sortedKeys(data) {
+		value := data[key]
 		switch opts.Format {
 		case "env":
 			os.Stdout.WriteString(fmt.Sprintf("%s=%s\n", key, string(value)))
@@ -136,4 +138,12 @@ func cliParseFromHandlers(option string, arg flags.SplitArgument, args []string)
 		}
 	}
 	return args, nil
+}
+
+func sortedKeys(mp map[string][]byte) (keys []string) {
+	for v := range mp {
+		keys = append(keys, v)
+	}
+	sort.Strings(keys)
+	return
 }
