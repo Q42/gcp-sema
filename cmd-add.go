@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -100,9 +100,11 @@ func readStringSilently(prompt string) (secret string) {
 		}
 		secret = string(bytePassword)
 	} else {
-		reader := bufio.NewReader(os.Stdin)
-		password, _ := reader.ReadString('\n')
-		secret = strings.Trim(password, "\n\r")
+		password, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
+		secret = string(password)
 	}
 	return
 }
