@@ -46,7 +46,7 @@ type migrateCommand struct {
 		Project string `description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
 	Dir                  string `long:"dir" description:"Use this if the config-schema.json is in $dir relative to another directory; example --dir=server"`
-	Prefix               string `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+	Prefix               string `long:"prefix" description:"In SecretsManager the keys will be prefixed with this prefix. Defaults to KubernetesSecretName."`
 	KubernetesContext    string `long:"context" description:"Explicitly specify which kubectl context to run in to get the k8s secret."`
 	KubernetesSecretName string `short:"s" long:"kubernetesSecretName" description:"Explicitly specify which k8s secret to migrate to SeMa."`
 	KubernetesSecretCmd  string `short:"c" long:"kubernetesSecretCommand" description:"Explicitly specify which kubectl command to run to get the k8s secret."`
