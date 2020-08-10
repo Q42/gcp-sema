@@ -17,6 +17,12 @@ type SecretHandler interface {
 	Populate(bucket map[string][]byte)
 }
 
+type UnstructuredHandler {
+	Type  string
+	Key   string
+	Value string
+}
+
 // MakeSecretHandler resolves the different kinds of handlers
 func MakeSecretHandler(handler, name, value string) SecretHandler {
 	switch handler {

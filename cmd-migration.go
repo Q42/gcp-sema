@@ -148,7 +148,10 @@ func (opts *migrateCommand) Execute(args []string) error {
 		// In literal mode we literally take each Kubernetes secret key/value pair and put it into Secret Manager.
 		// For applications using config-env.json, this means that whole file is stored in 1 single value.
 
-		manualCommand := fmt.Sprintf(`sema render %s --name="%s" `, opts.Positional.Project, opts.KubernetesSecretName)
+		manualCommand := RenderConfigYAML{
+			Name: opts.KubernetesSecretName,
+			Dir:  secretsPullDirectoryFromPrefix(opts.Dir),
+		}
 		for _, secret := range legacy.Secrets {
 			var data []byte
 			if base64data, hasKey := k8sSecret.Data[secret.Name]; hasKey {
@@ -166,11 +169,15 @@ func (opts *migrateCommand) Execute(args []string) error {
 				Data:       string(data),
 				Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
 			})
-			manualCommand += fmt.Sprintf("\\\n --from-sema-literal=\"%s=%s\"", secret.Name, semaName)
+			manualCommand.Handlers = append(manualCommand.Handlers, UnstructuredHandler{"sema-literal", secret.Name, semaName})
+			secretConfigYaml, err := yaml.Marshal(struct{ SecretGenerator RenderConfigYAML }{manualCommand})
+			panicIfErr(err)
 		}
 
 		actions = append(actions, manualAction{
-			Action: fmt.Sprintf("Manual: update config to run:\n%s", color.BlueString(manualCommand)),
+			Action: fmt.Sprintf("Manual: update .secrets-config.yml to include:\n%s", color.BlueString(secretConfigYaml)),
+		}, manualAction{
+			Action: fmt.Sprintf("Manual: update deploy configuration to include:\n%s", color.BlueString(`generators:\n- command: "sema render $PROJECT"`)),
 		})
 
 	case "multi":
@@ -476,4 +483,13 @@ func isSafeCoercible(node interface{}, conf convictConfiguration) (bool, error) 
 		return false, err
 	}
 	return nextValue == value, nil
+}
+
+// sema pull has a different meaning for "dir": it is not a prefix but a file destination
+// We need to append '/secrets', but take care if dir is empty as "/secrets" is not relative.
+func secretsPullDirectoryFromPrefix(dir string) string {
+	if dir == "" {
+		return "secrets"
+	}
+	return fmt.Sprintf("%s/secrets", dir)
 }

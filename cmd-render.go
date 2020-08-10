@@ -110,14 +110,14 @@ data:
 	return nil
 }
 
-// Allows storing flags in a config file (uses yaml prefix 'secretsGenerator')
+// Allows storing flags in a config file (uses yaml prefix 'secretGenerator')
 func (opts *RenderCommand) parseConfigFile() {
 	if opts.ConfigFile == "" {
 		opts.ConfigFile = ".secrets-config.yml"
 	}
 	if _, err := os.Stat(opts.ConfigFile); err == nil {
 		var parsed struct {
-			SecretsGenerator RenderConfigYAML `yaml:"secretsGenerator"`
+			SecretGenerator RenderConfigYAML `yaml:"secretGenerator"`
 		}
 		data, err := ioutil.ReadFile(opts.ConfigFile)
 		if err != nil {
@@ -128,7 +128,7 @@ func (opts *RenderCommand) parseConfigFile() {
 			panic(err)
 		}
 		opts.Handlers = []SecretHandler{}
-		for _, val := range parsed.SecretsGenerator.Handlers {
+		for _, val := range parsed.SecretGenerator.Handlers {
 			handler, err := ParseSecretHandler(val)
 			if err == nil {
 				opts.Handlers = append(opts.Handlers, handler)
@@ -136,9 +136,9 @@ func (opts *RenderCommand) parseConfigFile() {
 				panic(err)
 			}
 		}
-		opts.Prefix = parsed.SecretsGenerator.Prefix
-		opts.Name = parsed.SecretsGenerator.Name
-		opts.Dir = parsed.SecretsGenerator.Dir
+		opts.Prefix = parsed.SecretGenerator.Prefix
+		opts.Name = parsed.SecretGenerator.Name
+		opts.Dir = parsed.SecretGenerator.Dir
 	}
 }
 
