@@ -5,7 +5,8 @@ import (
 	"fmt"
   "io/ioutil"
   "os"
-	"regexp"
+  "path/filepath"
+  "regexp"
 	"sort"
 	"strconv"
 
@@ -86,11 +87,29 @@ data:
 		switch opts.Format {
 		case "env":
 			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
-		case "dir":
-		  err := ioutil.WriteFile(key, value, 0644)
-		  if err != nil {
-		    panic(fmt.Sprintf("error writing to file %s", key))
+		case "files":
+		  _, err := os.Stat(opts.Output)
+		  filepath := filepath.Join(opts.Output, key)
+		  if os.IsNotExist(err) {
+		    os.MkdirAll(opts.Output, 0755)
       }
+      _, err = os.Stat(filepath)
+      if os.IsExist(err) {
+        fmt.Println(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]:", filepath))
+        confirmed := askForConfirmation()
+        if confirmed {
+          err = ioutil.WriteFile(filepath, value, 0755)
+          if err != nil {
+            panic(fmt.Sprintf("error writing to file %s\n err: %s", filepath, err.Error()))
+          }
+        }
+      } else {
+        err = ioutil.WriteFile(filepath, value, 0755)
+        if err != nil {
+          panic(fmt.Sprintf("error writing to file %s\nerr: %s", filepath, err.Error()))
+        }
+      }
+
 		default:
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
 		}
@@ -104,10 +123,11 @@ type RenderCommand struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
 	Verbose  []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format   string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'dir' will generate files per secret in the secrets folder"`
+	Format   string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
 	Prefix   string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 	Handlers []SecretHandler `no-flag:"y"`
 	Name     string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
+	Output   string          `short:"o" long:"output" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
 }
 
 // For testing, repeatably executable
