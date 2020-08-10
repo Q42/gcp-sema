@@ -2,6 +2,8 @@ module github.com/Q42/gcp-sema
 
 go 1.14
 
+replace github.com/Q42/gcp-sema/pkg/secretmanager => ./pkg/secretmanager
+
 require (
 	cloud.google.com/go v0.58.0
 	github.com/fatih/color v1.9.0

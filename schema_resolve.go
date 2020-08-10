@@ -83,9 +83,11 @@ func (r resolvedSecretSema) String() string {
 }
 
 func (r resolvedSecretSema) GetSecretValue() *string {
-	version := getLastSecretVersion(fmt.Sprintf("projects/%s/secrets/%s", GcloudProject, r.key))
-	val := getSecretValue(version)
-	stringValue := string(val.Data)
+	secret, err := client.Get(r.key)
+	panicIfErr(err)
+	val, err := secret.GetValue()
+	panicIfErr(err)
+	stringValue := string(val)
 	return &stringValue
 }
 

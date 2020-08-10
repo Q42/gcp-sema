@@ -61,7 +61,7 @@ var Verbose bool
 
 // Execute of RenderCommand is the 'sema render' command
 func (opts *RenderCommand) Execute(args []string) error {
-	prepareSemaClient()
+	prepareSemaClient(opts.Positional.Project)
 
 	// Load defaults from config file
 	opts.parseConfigFile()
@@ -74,7 +74,6 @@ func (opts *RenderCommand) Execute(args []string) error {
 	}
 
 	// Globally retrieved variables:
-	GcloudProject = opts.Positional.Project
 	RenderPrefix = opts.Prefix
 	Verbose = len(opts.Verbose) > 0
 

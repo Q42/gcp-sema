@@ -2,23 +2,22 @@ package main
 
 import (
 	// Secret Manager API from Google
-	"context"
+
 	loglib "log"
 	"os"
 
-	sema "cloud.google.com/go/secretmanager/apiv1"
+	secretmanager "github.com/Q42/gcp-sema/pkg/secretmanager"
 	flags "github.com/jessevdk/go-flags"
 )
 
-var client *sema.Client
-var ctx context.Context = context.Background()
+var client secretmanager.KVClient
 var log *loglib.Logger = loglib.New(os.Stderr, "", 0)
 var parser = flags.NewParser(&struct{}{}, flags.Default)
 
-func prepareSemaClient() {
+func prepareSemaClient(project string) {
 	// Get Secret Manager client
 	var err error
-	client, err = sema.NewClient(ctx)
+	client, err = secretmanager.NewClient(project)
 	panicIfErr(err)
 }
 

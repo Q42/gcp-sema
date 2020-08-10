@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 )
 
@@ -95,7 +96,10 @@ type semaHandlerSingleKey struct {
 }
 
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
-	availableSecretKeys := getAllSecretsInProject()
+	availableSecrets, err := client.ListKeys()
+	availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
+	panicIfErr(err)
+
 	mapStrings(availableSecretKeys, trimPathPrefix) // otherwise they wont match during 'schemaResolveSecrets'
 
 	schema := parseSchemaFile(h.configSchemaFile)
@@ -123,7 +127,10 @@ type semaHandlerEnvironmentVariables struct {
 }
 
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
-	availableSecretKeys := getAllSecretsInProject()
+	availableSecrets, err := client.ListKeys()
+	availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
+	panicIfErr(err)
+
 	schema := parseSchemaFile(h.configSchemaFile)
 	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
 
@@ -148,8 +155,10 @@ type semaHandlerLiteral struct {
 }
 
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
-	version := getLastSecretVersion(fmt.Sprintf("projects/%s/secrets/%s", GcloudProject, h.secret))
-	bucket[h.key] = getSecretValue(version).Data
+	secret, err := client.Get(h.secret)
+	panicIfErr(err)
+	data, err := secret.GetValue()
+	bucket[h.key] = data
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"

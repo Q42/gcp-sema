@@ -8,10 +8,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/go-errors/errors"
 	"golang.org/x/crypto/ssh/terminal"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
-	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -34,42 +33,28 @@ type addCommand struct {
 }
 
 func (opts *addCommand) Execute(args []string) (err error) {
-	prepareSemaClient()
+	prepareSemaClient(opts.Positional.Project)
 
 	if opts.Data == "" {
 		opts.Data = readStringSilently("Enter secret value: ")
 	}
 
 	// Upsert "Secret" (the container)
-	var secret *secretmanagerpb.Secret
-	var version string
-	secret, err = client.GetSecret(ctx, &secretmanagerpb.GetSecretRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s", opts.Positional.Project, opts.Positional.Name),
-	})
+	var secret secretmanager.KVValue
+	secret, err = client.Get(opts.Positional.Name)
 	var isExistingSecret = secret != nil
 
 	if secret == nil || status.Convert(err).Code() == codes.NotFound {
-		_, err := client.CreateSecret(ctx, &secretmanagerpb.CreateSecretRequest{
-			Parent:   fmt.Sprintf("projects/%s", opts.Positional.Project),
-			SecretId: opts.Positional.Name,
-			Secret: &secretmanagerpb.Secret{
-				Labels: opts.Labels, Replication: &secretmanagerpb.Replication{
-					Replication: &secretmanagerpb.Replication_Automatic_{},
-				}},
-		})
+		_, err := client.New(opts.Positional.Name, opts.Labels)
 		if err != nil {
 			return err
 		}
-	} else if !reflect.DeepEqual(secret.Labels, opts.Labels) {
+	} else if !reflect.DeepEqual(secret.GetLabels(), opts.Labels) {
 		if len(opts.Force) == 0 {
-			log.Println("Existing labels:", formatLabels(secret.Labels))
+			log.Println("Existing labels:", formatLabels(secret.GetLabels()))
 			return errors.New("Please set the same labels, or use --force to update the already existing secret")
 		}
-		secret.Labels = opts.Labels
-		secret, err = client.UpdateSecret(ctx, &secretmanagerpb.UpdateSecretRequest{
-			Secret:     secret,
-			UpdateMask: &field_mask.FieldMask{Paths: []string{"labels"}},
-		})
+		err = secret.SetLabels(opts.Labels)
 		if err != nil {
 			return err
 		}
@@ -80,7 +65,7 @@ func (opts *addCommand) Execute(args []string) (err error) {
 		return errors.New("Please use --force to update value of existing secret")
 	}
 
-	version, err = writeSecretVersion(opts.Positional.Project, opts.Positional.Name, opts.Data)
+	version, err := secret.SetValue([]byte(opts.Data))
 	if err != nil {
 		return err
 	}

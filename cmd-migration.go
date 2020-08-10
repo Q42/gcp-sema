@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 	"github.com/flynn/json5"
 	"github.com/go-errors/errors"
@@ -56,7 +57,7 @@ type migrateCommand struct {
 
 // Execute runs the migration command
 func (opts *migrateCommand) Execute(args []string) error {
-	prepareSemaClient()
+	prepareSemaClient(opts.getProject())
 
 	var heading = color.New(color.Bold, color.Underline)
 	heading.Println("Migration")
@@ -68,7 +69,6 @@ func (opts *migrateCommand) Execute(args []string) error {
   multi)   which splits the config-env.json into secrets like environment variables`)
 	fmt.Println()
 
-	GcloudProject = opts.getProject()
 	workingDir, err := os.Getwd()
 	panicIfErr(err)
 	path := workingDir
@@ -175,7 +175,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 
 	case "multi":
 		// Get all secret names that are available
-		availableSecrets := getAllSecretsInProject()
+		availableSecrets, err := client.ListKeys()
+		availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
+		panicIfErr(err)
 
 		// Legenda
 		log.Println("Legenda:")
@@ -230,7 +232,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 			}
 
 			for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
-				if isListElement(availableSecrets, suggestion) {
+				if isListElement(availableSecretKeys, suggestion) {
 					if !usedConfigEnvValue && !usedSemaKey {
 						usedSemaKey = true
 						actions = append(actions, &manualAction{
@@ -279,15 +281,6 @@ func (opts *migrateCommand) Execute(args []string) error {
 		}
 	}
 
-	// // Dummy:
-	// GcloudProject = "my-project"
-	// secrets := getAllSecretsInProject()
-	// for _, name := range secrets {
-	// 	log.Println("Secret", name)
-	// 	version := getLastSecretVersion(name)
-	// 	value := getSecretValue(version).Data
-	// 	log.Println("Secret", version, "secret data length =", len(value))
-	// }
 	return nil
 }
 
