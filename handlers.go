@@ -39,6 +39,20 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 	}
 }
 
+func ParseSecretHandler(input struct {
+	Type  string
+	Key  string
+	Value string
+}) (SecretHandler, error) {
+	defer func() {
+		// Catch any panic errors from MakeSecretHandler
+		if r := recover(); r != nil {
+			panic(fmt.Errorf("Could not read handler from YAML configuration: %q", input))
+		}
+	}()
+	return MakeSecretHandler(input.Type, input.Key, input.Value), nil
+}
+
 type literalHandler struct {
 	key   string
 	value string

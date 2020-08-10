@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -59,6 +60,41 @@ var Verbose bool
 func (opts *RenderCommand) Execute(args []string) error {
 	prepareSemaClient()
 
+	// Load defaults from config file
+	if opts.ConfigFile == "" {
+		opts.ConfigFile = ".secrets-config.yml"
+	}
+	if _, err := os.Stat(opts.ConfigFile); err == nil {
+		var parsed struct {
+			SecretsGenerator RenderConfigYAML `yaml:"secretsGenerator"`
+		}
+		data, err := ioutil.ReadFile(opts.ConfigFile)
+		if err != nil {
+			panic(err)
+		}
+		err = yaml.Unmarshal([]byte(data), &parsed)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(opts.Handlers) == 0 {
+			for _, val := range parsed.SecretsGenerator.Handlers {
+				handler, err := ParseSecretHandler(val)
+				if err == nil {
+					opts.Handlers = append(opts.Handlers, handler)
+				} else {
+					panic(err)
+				}
+			}
+		}
+		if opts.Prefix == "" {
+			opts.Prefix = parsed.SecretsGenerator.Prefix
+		}
+		if opts.Name == "" {
+			opts.Name = parsed.SecretsGenerator.Name
+		}
+	}
+
 	// Globally retrieved variables:
 	GcloudProject = opts.Positional.Project
 	RenderPrefix = opts.Prefix
@@ -88,7 +124,7 @@ data:
 		case "env":
 			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
 		case "files":
-			writeDevSecretFile(opts.Output, key, value)
+			writeDevSecretFile(opts.Dir, key, value)
 		default:
 			// "k8s" format:
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
@@ -126,12 +162,24 @@ type RenderCommand struct {
 	Positional struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
-	Verbose  []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format   string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
-	Prefix   string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
-	Handlers []SecretHandler `no-flag:"y"`
-	Name     string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
-	Output   string          `short:"o" long:"output" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
+	Verbose    []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Format     string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
+	Prefix     string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+	Handlers   []SecretHandler `no-flag:"y"`
+	Name       string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
+	Dir        string          `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
+	ConfigFile string          `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
+}
+
+// Same as RenderCommand but easily parsable
+type RenderConfigYAML struct {
+	Prefix   string
+	Handlers []struct {
+		Type  string
+		Key   string
+		Value string
+	}
+	Name string
 }
 
 // For testing, repeatably executable
