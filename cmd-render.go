@@ -62,40 +62,9 @@ func (opts *RenderCommand) Execute(args []string) error {
 	prepareSemaClient()
 
 	// Load defaults from config file
-	if opts.ConfigFile == "" {
-		opts.ConfigFile = ".secrets-config.yml"
-	}
-	if _, err := os.Stat(opts.ConfigFile); err == nil {
-		var parsed struct {
-			SecretsGenerator RenderConfigYAML `yaml:"secretsGenerator"`
-		}
-		data, err := ioutil.ReadFile(opts.ConfigFile)
-		if err != nil {
-			panic(err)
-		}
-		err = yaml.Unmarshal([]byte(data), &parsed)
-		if err != nil {
-			panic(err)
-		}
+	opts.parseConfigFile()
 
-		if len(opts.Handlers) == 0 {
-			for _, val := range parsed.SecretsGenerator.Handlers {
-				handler, err := ParseSecretHandler(val)
-				if err == nil {
-					opts.Handlers = append(opts.Handlers, handler)
-				} else {
-					panic(err)
-				}
-			}
-		}
-		if opts.Prefix == "" {
-			opts.Prefix = parsed.SecretsGenerator.Prefix
-		}
-		if opts.Name == "" {
-			opts.Name = parsed.SecretsGenerator.Name
-		}
-	}
-
+	// Default secret name to folder basename
 	if opts.Name == "" {
 		cwdpath, err := os.Getwd()
 		panicIfErr(err)
@@ -141,6 +110,38 @@ data:
 	return nil
 }
 
+// Allows storing flags in a config file (uses yaml prefix 'secretsGenerator')
+func (opts *RenderCommand) parseConfigFile() {
+	if opts.ConfigFile == "" {
+		opts.ConfigFile = ".secrets-config.yml"
+	}
+	if _, err := os.Stat(opts.ConfigFile); err == nil {
+		var parsed struct {
+			SecretsGenerator RenderConfigYAML `yaml:"secretsGenerator"`
+		}
+		data, err := ioutil.ReadFile(opts.ConfigFile)
+		if err != nil {
+			panic(err)
+		}
+		err = yaml.Unmarshal([]byte(data), &parsed)
+		if err != nil {
+			panic(err)
+		}
+		opts.Handlers = []SecretHandler{}
+		for _, val := range parsed.SecretsGenerator.Handlers {
+			handler, err := ParseSecretHandler(val)
+			if err == nil {
+				opts.Handlers = append(opts.Handlers, handler)
+			} else {
+				panic(err)
+			}
+		}
+		opts.Prefix = parsed.SecretsGenerator.Prefix
+		opts.Name = parsed.SecretsGenerator.Name
+		opts.Dir = parsed.SecretsGenerator.Dir
+	}
+}
+
 func writeDevSecretFile(directory, key string, value []byte) {
 	_, err := os.Stat(directory)
 	filepath := filepath.Join(directory, key)
@@ -179,7 +180,7 @@ type RenderCommand struct {
 	ConfigFile string          `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
 }
 
-// Same as RenderCommand but easily parsable
+// RenderConfigYAML is the same as RenderCommand but easily parsable
 type RenderConfigYAML struct {
 	Prefix   string
 	Handlers []struct {
@@ -187,6 +188,7 @@ type RenderConfigYAML struct {
 		Key   string
 		Value string
 	}
+	Dir string
 	Name string
 }
 

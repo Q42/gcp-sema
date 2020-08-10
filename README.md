@@ -42,6 +42,9 @@ $ sema add [project] [secret_name] \
   --label key:value --label foo:bar
 ```
 
+## Running a migration:
+See [WORKFLOW.md](./WORKLOW.md)
+
 ## Developing & debugging
 Use this for a quick test:
 ```bash
