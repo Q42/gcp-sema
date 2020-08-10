@@ -23,8 +23,8 @@ var (
 	renderCommandOpts = &RenderCommand{}
 )
 
-var renderDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
-var renderDescriptionLong = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
+var renderDescription = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
+var renderDescriptionLong = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
 
 There are multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value].
 The following options are implemented:
@@ -43,6 +43,8 @@ The following options are implemented:
 
   # extract key value from SeMa into literals
   --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
+
+Configuration can also be done through YAML in .secrets-config.yml in key 'secretGenerator'.
 `
 
 func init() {
