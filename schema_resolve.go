@@ -141,11 +141,14 @@ func schemaResolveSecrets(schema convictConfigSchema, availableSecretKeys []stri
 		log.Println(color.RedString("No secret value resolved for:"))
 		for _, err := range allErrors {
 			log.Println(color.RedString("- %s", err.Error()))
-			if errors.Is(err, semaNotFoundError{}) {
-				log.Println(color.RedString("  format: %s", err.(semaNotFoundError).conf.Format.String()))
-			}
-			if errors.Is(err, semaNotFoundError{}) && err.(semaNotFoundError).conf.Doc != "" {
-				log.Println(color.RedString("  doc: %s", err.(semaNotFoundError).conf.Doc))
+			if errors.As(semaNotFoundError{}, &err) {
+				nf := err.(semaNotFoundError)
+				if nf.conf.Format != nil {
+					log.Println(color.RedString("  format: %s", nf.conf.Format.String()))
+				}
+				if nf.conf.Doc != "" {
+					log.Println(color.RedString("  doc: %s", nf.conf.Doc))
+				}
 			}
 		}
 		log.Println()
