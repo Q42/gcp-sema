@@ -94,7 +94,7 @@ data:
 		    os.MkdirAll(opts.Output, 0755)
       }
       _, err = os.Stat(filepath)
-      if os.IsExist(err) {
+      if err == nil {
         fmt.Println(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]:", filepath))
         confirmed := askForConfirmation()
         if confirmed {
