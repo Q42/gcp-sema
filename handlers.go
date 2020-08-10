@@ -17,7 +17,7 @@ type SecretHandler interface {
 	Populate(bucket map[string][]byte)
 }
 
-type UnstructuredHandler {
+type unstructuredHandler struct {
 	Type  string
 	Key   string
 	Value string
@@ -47,7 +47,7 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 
 func ParseSecretHandler(input struct {
 	Type  string
-	Key  string
+	Key   string
 	Value string
 }) (SecretHandler, error) {
 	defer func() {

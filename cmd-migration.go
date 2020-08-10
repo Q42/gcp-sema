@@ -169,16 +169,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 				Data:       string(data),
 				Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
 			})
-			manualCommand.Handlers = append(manualCommand.Handlers, UnstructuredHandler{"sema-literal", secret.Name, semaName})
-			secretConfigYaml, err := yaml.Marshal(struct{ SecretGenerator RenderConfigYAML }{manualCommand})
-			panicIfErr(err)
+			manualCommand.Handlers = append(manualCommand.Handlers, unstructuredHandler{"sema-literal", secret.Name, semaName})
 		}
-
-		actions = append(actions, manualAction{
-			Action: fmt.Sprintf("Manual: update .secrets-config.yml to include:\n%s", color.BlueString(secretConfigYaml)),
-		}, manualAction{
-			Action: fmt.Sprintf("Manual: update deploy configuration to include:\n%s", color.BlueString(`generators:\n- command: "sema render $PROJECT"`)),
-		})
+		actions = append(actions, manualCommand.actions()...)
 
 	case "multi":
 		// Get all secret names that are available
@@ -251,11 +244,17 @@ func (opts *migrateCommand) Execute(args []string) error {
 			}
 		}
 
-		manualCommand := fmt.Sprintf(`sema render %s --name="%s" --prefix="%s"`, opts.Positional.Project, opts.KubernetesSecretName, opts.Prefix)
-		manualCommand += fmt.Sprintf("\\\n  --from-sema-schema-to-file=config-env.json=%s", schemaPath)
-		actions = append(actions, manualAction{
-			Action: fmt.Sprintf("Manual: update config to run:\n%s", color.BlueString(manualCommand)),
-		})
+		manualCommand := RenderConfigYAML{
+			Name:   opts.KubernetesSecretName,
+			Prefix: opts.Prefix,
+			Dir:    secretsPullDirectoryFromPrefix(opts.Dir),
+			Handlers: []unstructuredHandler{{
+				Type:  "sema-schema-to-file",
+				Key:   "config-env.json",
+				Value: schemaPath,
+			}},
+		}
+		actions = append(actions, manualCommand.actions()...)
 	default:
 		log.Fatalf("Invalid mode %s", opts.Mode)
 	}
@@ -492,4 +491,21 @@ func secretsPullDirectoryFromPrefix(dir string) string {
 		return "secrets"
 	}
 	return fmt.Sprintf("%s/secrets", dir)
+}
+
+// EditSuggestion outputs a sample how to update the .secrets-config.yml file
+func (conf *RenderConfigYAML) editSuggestion() string {
+	secretConfigYaml, err := yaml.Marshal(struct {
+		SecretGenerator RenderConfigYAML `yaml:"secretGenerator"`
+	}{*conf})
+	panicIfErr(err)
+	return string(secretConfigYaml)
+}
+
+func (conf *RenderConfigYAML) actions() []ProposedAction {
+	return []ProposedAction{manualAction{
+		Action: fmt.Sprintf("Manually update .secrets-config.yml to include:\n%s", color.BlueString(conf.editSuggestion())),
+	}, manualAction{
+		Action: fmt.Sprintf("Manually update deploy configuration to include:\n%s", color.BlueString("generators:\n- command: \"sema render $PROJECT\"")),
+	}}
 }

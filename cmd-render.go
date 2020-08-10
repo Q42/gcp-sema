@@ -183,13 +183,9 @@ type RenderCommand struct {
 // RenderConfigYAML is the same as RenderCommand but easily parsable
 type RenderConfigYAML struct {
 	Prefix   string
-	Handlers []struct {
-		Type  string
-		Key   string
-		Value string
-	}
-	Dir string
-	Name string
+	Handlers []unstructuredHandler
+	Dir      string
+	Name     string
 }
 
 // For testing, repeatably executable
