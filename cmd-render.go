@@ -18,9 +18,9 @@ import (
 
 var (
 	// formats of cli-arg is "{reArgName}{reArgValue}"
-	reArgName     = regexp.MustCompile(`from-([^=]+)`)
-	reArgValue    = regexp.MustCompile(`([^=]+)(=([^=]+))?`)
-	renderCommand = &RenderCommand{}
+	reArgName         = regexp.MustCompile(`from-([^=]+)`)
+	reArgValue        = regexp.MustCompile(`([^=]+)(=([^=]+))?`)
+	renderCommandOpts = &RenderCommand{}
 )
 
 var renderDescription = `Create combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
@@ -46,7 +46,7 @@ The following options are implemented:
 `
 
 func init() {
-	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommand)
+	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommandOpts)
 	panicIfErr(err)
 	parser.UnknownOptionHandler = cliParseFromHandlers
 }
@@ -132,9 +132,10 @@ data:
 			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
 		case "files":
 			writeDevSecretFile(opts.Dir, key, value)
-		default:
-			// "k8s" format:
+		case "yaml":
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
+		default:
+			panic(fmt.Errorf("Unknown format %q (use [env,files,yaml])", opts.Format))
 		}
 	}
 	return nil
@@ -196,9 +197,9 @@ func parseRenderArgs(args []string) RenderCommand {
 	parser.UnknownOptionHandler = cliParseFromHandlers
 
 	// Do it
-	renderCommand.Handlers = []SecretHandler{}
+	renderCommandOpts.Handlers = []SecretHandler{}
 	_, err := parser.ParseArgs(args)
-	opts.Handlers = renderCommand.Handlers
+	opts.Handlers = renderCommandOpts.Handlers
 	if err != nil {
 		os.Exit(1)
 	}
@@ -218,7 +219,7 @@ func cliParseFromHandlers(option string, arg flags.SplitArgument, args []string)
 				}
 			}()
 			handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
-			renderCommand.Handlers = append(renderCommand.Handlers, handler)
+			renderCommandOpts.Handlers = append(renderCommandOpts.Handlers, handler)
 			return args, nil
 		}
 	}
