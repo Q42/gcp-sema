@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-  "io/ioutil"
-  "os"
-  "path/filepath"
-  "regexp"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 
@@ -88,33 +88,37 @@ data:
 		case "env":
 			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
 		case "files":
-		  _, err := os.Stat(opts.Output)
-		  filepath := filepath.Join(opts.Output, key)
-		  if os.IsNotExist(err) {
-		    os.MkdirAll(opts.Output, 0755)
-      }
-      _, err = os.Stat(filepath)
-      if err == nil {
-        fmt.Println(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]:", filepath))
-        confirmed := askForConfirmation()
-        if confirmed {
-          err = ioutil.WriteFile(filepath, value, 0755)
-          if err != nil {
-            panic(fmt.Sprintf("error writing to file %s\n err: %s", filepath, err.Error()))
-          }
-        }
-      } else {
-        err = ioutil.WriteFile(filepath, value, 0755)
-        if err != nil {
-          panic(fmt.Sprintf("error writing to file %s\nerr: %s", filepath, err.Error()))
-        }
-      }
-
+			writeDevSecretFile(opts.Output, key, value)
 		default:
+			// "k8s" format:
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
 		}
 	}
 	return nil
+}
+
+func writeDevSecretFile(directory, key string, value []byte) {
+	_, err := os.Stat(directory)
+	filepath := filepath.Join(directory, key)
+	if os.IsNotExist(err) {
+		os.MkdirAll(directory, 0755)
+	}
+	_, err = os.Stat(filepath)
+	if err == nil {
+		fmt.Println(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]:", filepath))
+		confirmed := askForConfirmation()
+		if confirmed {
+			err = ioutil.WriteFile(filepath, value, 0755)
+			if err != nil {
+				panic(fmt.Sprintf("error writing to file %s\n err: %s", filepath, err.Error()))
+			}
+		}
+	} else {
+		err = ioutil.WriteFile(filepath, value, 0755)
+		if err != nil {
+			panic(fmt.Sprintf("error writing to file %s\nerr: %s", filepath, err.Error()))
+		}
+	}
 }
 
 // RenderCommand describes how to use the render command
