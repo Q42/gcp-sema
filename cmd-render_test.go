@@ -55,4 +55,6 @@ func TestRenderFormat(t *testing.T) {
 	assert.Equal(t, "yaml", args.Format, "Should parse formats")
 	args = parseRenderArgs([]string{"my-project"})
 	assert.Equal(t, "yaml", args.Format, "Should parse formats")
+	args = parseRenderArgs([]string{"--format=dir", "my-project"})
+	assert.Equal(t, "dir", args.Format, "Should parse formats")
 }

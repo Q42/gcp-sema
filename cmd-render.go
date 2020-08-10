@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
+  "io/ioutil"
+  "os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -85,6 +86,11 @@ data:
 		switch opts.Format {
 		case "env":
 			os.Stdout.WriteString(fmt.Sprintf("%s=%q\n", key, string(value)))
+		case "dir":
+		  err := ioutil.WriteFile(key, value, 0644)
+		  if err != nil {
+		    panic(fmt.Sprintf("error writing to file %s", key))
+      }
 		default:
 			os.Stdout.WriteString(fmt.Sprintf("  %s: %s\n", key, base64.StdEncoding.EncodeToString([]byte(value))))
 		}
@@ -98,7 +104,7 @@ type RenderCommand struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
 	Verbose  []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format   string          `short:"o" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose)."`
+	Format   string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'dir' will generate files per secret in the secrets folder"`
 	Prefix   string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 	Handlers []SecretHandler `no-flag:"y"`
 	Name     string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
