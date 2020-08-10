@@ -142,6 +142,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 
 	// Gather all actions so we can give an overview later
 	actions := make([]ProposedAction, 0)
+	pullDir := secretsPullDirectoryFromPrefix(opts.Dir)
 
 	switch opts.Mode {
 	case "literal":
@@ -149,8 +150,8 @@ func (opts *migrateCommand) Execute(args []string) error {
 		// For applications using config-env.json, this means that whole file is stored in 1 single value.
 
 		manualCommand := RenderConfigYAML{
-			Name: opts.KubernetesSecretName,
-			Dir:  secretsPullDirectoryFromPrefix(opts.Dir),
+			Name: &opts.KubernetesSecretName,
+			Dir:  &pullDir,
 		}
 		for _, secret := range legacy.Secrets {
 			var data []byte
@@ -247,9 +248,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 		}
 
 		manualCommand := RenderConfigYAML{
-			Name:   opts.KubernetesSecretName,
-			Prefix: opts.Prefix,
-			Dir:    secretsPullDirectoryFromPrefix(opts.Dir),
+			Name:   &opts.KubernetesSecretName,
+			Prefix: &opts.Prefix,
+			Dir:    &pullDir,
 			Handlers: []unstructuredHandler{{
 				Type:  "sema-schema-to-file",
 				Key:   "config-env.json",

@@ -137,9 +137,15 @@ func (opts *RenderCommand) parseConfigFile() {
 				panic(err)
 			}
 		}
-		opts.Prefix = parsed.SecretGenerator.Prefix
-		opts.Name = parsed.SecretGenerator.Name
-		opts.Dir = parsed.SecretGenerator.Dir
+		if parsed.SecretGenerator.Prefix != nil {
+			opts.Prefix = *parsed.SecretGenerator.Prefix
+		}
+		if parsed.SecretGenerator.Name != nil {
+			opts.Name = *parsed.SecretGenerator.Name
+		}
+		if parsed.SecretGenerator.Dir != nil {
+			opts.Dir = *parsed.SecretGenerator.Dir
+		}
 	}
 }
 
@@ -183,10 +189,10 @@ type RenderCommand struct {
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
 type RenderConfigYAML struct {
-	Prefix   string
+	Prefix   *string
 	Handlers []unstructuredHandler
-	Dir      string
-	Name     string
+	Dir      *string
+	Name     *string
 }
 
 // For testing, repeatably executable
