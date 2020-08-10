@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	flags "github.com/jessevdk/go-flags"
 )
 
@@ -22,7 +20,6 @@ func init() {
 }
 
 func (opts *pullCommand) Execute(args []string) error {
-	fmt.Println(opts, args)
 	// if the render default ("yaml") is used, use "files" instead
 	formatOpt := pullCommandInst.FindOptionByLongName("format")
 	if formatOpt.IsSetDefault() {
