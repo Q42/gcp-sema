@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -95,6 +96,12 @@ func (opts *RenderCommand) Execute(args []string) error {
 		}
 	}
 
+	if opts.Name == "" {
+		cwdpath, err := os.Getwd()
+		panicIfErr(err)
+		opts.Name = path.Base(cwdpath)
+	}
+
 	// Globally retrieved variables:
 	GcloudProject = opts.Positional.Project
 	RenderPrefix = opts.Prefix
@@ -166,7 +173,7 @@ type RenderCommand struct {
 	Format     string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
 	Prefix     string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
 	Handlers   []SecretHandler `no-flag:"y"`
-	Name       string          `long:"name" default:"mysecret" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
+	Name       string          `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
 	Dir        string          `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
 	ConfigFile string          `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
 }
