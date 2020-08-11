@@ -150,8 +150,9 @@ func (opts *migrateCommand) Execute(args []string) error {
 		// For applications using config-env.json, this means that whole file is stored in 1 single value.
 
 		manualCommand := RenderConfigYAML{
-			Name: &opts.KubernetesSecretName,
-			Dir:  &pullDir,
+			Name:   &opts.KubernetesSecretName,
+			Prefix: &opts.Prefix,
+			Dir:    &pullDir,
 		}
 		for _, secret := range legacy.Secrets {
 			var data []byte
@@ -170,7 +171,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 				Data:       string(data),
 				Labels:     map[string]string{"source": k8sSecret.Metadata.Name, "prefix": opts.Prefix},
 			})
-			manualCommand.Handlers = append(manualCommand.Handlers, unstructuredHandler{"sema-literal", secret.Name, semaName})
+			manualCommand.Secrets = append(manualCommand.Secrets, map[string]string{"path": secret.Name, "name": secret.Name, "type": "sema-literal", "semaKey": fmt.Sprintf("%s # This is the key in SeMa", semaName)})
 		}
 		actions = append(actions, manualCommand.actions()...)
 
@@ -251,10 +252,11 @@ func (opts *migrateCommand) Execute(args []string) error {
 			Name:   &opts.KubernetesSecretName,
 			Prefix: &opts.Prefix,
 			Dir:    &pullDir,
-			Handlers: []unstructuredHandler{{
-				Type:  "sema-schema-to-file",
-				Key:   "config-env.json",
-				Value: schemaPath,
+			Secrets: []map[string]string{{
+				"path":   "config-env.json",
+				"type":   "sema-schema-to-file",
+				"name":   "config-env.json",
+				"schema": schemaPath,
 			}},
 		}
 		actions = append(actions, manualCommand.actions()...)
@@ -489,9 +491,7 @@ func secretsPullDirectoryFromPrefix(dir string) string {
 
 // EditSuggestion outputs a sample how to update the .secrets-config.yml file
 func (conf *RenderConfigYAML) editSuggestion() string {
-	secretConfigYaml, err := yaml.Marshal(struct {
-		SecretGenerator RenderConfigYAML `yaml:"secretGenerator"`
-	}{*conf})
+	secretConfigYaml, err := yaml.Marshal(*conf)
 	panicIfErr(err)
 	return string(secretConfigYaml)
 }

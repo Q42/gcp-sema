@@ -74,16 +74,6 @@ func (h *literalHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = []byte(h.value)
 }
 
-type unknownHandler struct {
-	handler string
-	key     string
-	value   string
-}
-
-func (h *unknownHandler) Populate(bucket map[string][]byte) {
-	panic("Not Implemented!")
-}
-
 type fileHandler struct {
 	key  string
 	file string
