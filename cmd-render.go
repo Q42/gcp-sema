@@ -118,7 +118,10 @@ func (opts *RenderCommand) parseConfigFile() {
 	}
 	if _, err := os.Stat(opts.ConfigFile); err == nil {
 		var parsed struct {
-			SecretGenerator RenderConfigYAML `yaml:"secretGenerator"`
+			Name    *string             `yaml:"name"`
+			Prefix  *string             `yaml:"prefix"`
+			Dir     *string             `yaml:"dir"`
+			Secrets []map[string]string `yaml:"secrets"`
 		}
 		data, err := ioutil.ReadFile(opts.ConfigFile)
 		if err != nil {
@@ -128,23 +131,27 @@ func (opts *RenderCommand) parseConfigFile() {
 		if err != nil {
 			panic(err)
 		}
+
 		opts.Handlers = []SecretHandler{}
-		for _, val := range parsed.SecretGenerator.Handlers {
-			handler, err := ParseSecretHandler(val)
-			if err == nil {
-				opts.Handlers = append(opts.Handlers, handler)
-			} else {
-				panic(err)
+		for _, val := range parsed.Secrets {
+			if _, ok := val["type"]; ok {
+				handler, err := ParseSecretHandler(val)
+				if err == nil {
+					opts.Handlers = append(opts.Handlers, handler)
+				} else {
+					panic(err)
+				}
+
 			}
 		}
-		if parsed.SecretGenerator.Prefix != nil {
-			opts.Prefix = *parsed.SecretGenerator.Prefix
+		if parsed.Prefix != nil {
+			opts.Prefix = *parsed.Prefix
 		}
-		if parsed.SecretGenerator.Name != nil {
-			opts.Name = *parsed.SecretGenerator.Name
+		if parsed.Name != nil {
+			opts.Name = *parsed.Name
 		}
-		if parsed.SecretGenerator.Dir != nil {
-			opts.Dir = *parsed.SecretGenerator.Dir
+		if parsed.Dir != nil {
+			opts.Dir = *parsed.Dir
 		}
 	}
 }

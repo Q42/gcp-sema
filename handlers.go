@@ -46,18 +46,23 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 	}
 }
 
-func ParseSecretHandler(input struct {
-	Type  string
-	Key   string
-	Value string
-}) (SecretHandler, error) {
+func ParseSecretHandler(input map[string]string) (SecretHandler, error) {
 	defer func() {
 		// Catch any panic errors from MakeSecretHandler
 		if r := recover(); r != nil {
 			panic(fmt.Errorf("Could not read handler from YAML configuration: %q", input))
 		}
 	}()
-	return MakeSecretHandler(input.Type, input.Key, input.Value), nil
+	switch input["type"] {
+	case "sema-schema-to-file":
+		return MakeSecretHandler(input["type"], input["name"], input["schema"]), nil
+	case "sema-literal":
+		return MakeSecretHandler(input["type"], input["name"], input["semaKey"]), nil
+	case "file":
+		return MakeSecretHandler(input["type"], input["name"], input["path"]), nil
+	default:
+		return MakeSecretHandler(input["type"], input["name"], input["value"]), nil
+	}
 }
 
 type literalHandler struct {
