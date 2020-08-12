@@ -27,6 +27,7 @@ func TestParseRenderArgs(t *testing.T) {
 	expected := RenderCommand{
 		Format: "yaml",
 		Name:   "very-secret",
+		Dir:    "secrets",
 		Handlers: []SecretHandler{
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
