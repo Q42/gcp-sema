@@ -121,6 +121,7 @@ secrets:
 		Name:   "very-secret",
 		Prefix: "myapp1_v4",
 		Format: "yaml",
+		Dir:    "secrets",
 		Handlers: []SecretHandler{
 			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
 			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
@@ -130,8 +131,9 @@ secrets:
 			MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json"),
 		},
 	}
+	expected.Positional.Project = "my-project"
 
-	renderCommandOpts.mergeCommandOptions(parsedConfig)
-	assert.Equal(t, &expected, renderCommandOpts, "Config and command line options should be merged correctly")
+	opts.mergeCommandOptions(parsedConfig)
+	assert.Equal(t, expected, opts, "Config and command line options should be merged correctly")
 
 }

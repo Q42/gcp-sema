@@ -127,27 +127,14 @@ func (opts *RenderCommand) parseConfigFile() RenderCommand {
 }
 
 func (opts *RenderCommand) mergeCommandOptions(configFileOptions RenderCommand) {
-	cmd := parser.Find("render")
-	for _, option := range cmd.Options() {
-		opt := struct {
-			Name         string
-			Value        interface{}
-			IsSet        bool
-			IsSetDefault bool
-		}{option.LongName, option.Value(), option.IsSet(), option.IsSetDefault()}
-		os.Stderr.WriteString(fmt.Sprintf(`%+v`, opt))
-	}
-
-	prefixOption := cmd.FindOptionByLongName("prefix")
-	if !prefixOption.IsSet() && configFileOptions.Prefix != "" {
+	if opts.Prefix == "" && configFileOptions.Prefix != "" {
 		opts.Prefix = configFileOptions.Prefix
 	}
-	nameOption := cmd.FindOptionByLongName("name")
-	if !nameOption.IsSet() && configFileOptions.Name != "" {
+	if opts.Name == "" && configFileOptions.Name != "" {
 		opts.Name = configFileOptions.Name
 	}
-	dirOption := cmd.FindOptionByLongName("dir")
-	if dirOption.IsSetDefault() && configFileOptions.Dir != "" {
+	// TODO remove this hardcoded bit, `IsDefault()` always returns false for some reason
+	if opts.Dir == "secrets" && configFileOptions.Dir != "" {
 		opts.Dir = configFileOptions.Dir
 	}
 	opts.Handlers = append(opts.Handlers, configFileOptions.Handlers...)
