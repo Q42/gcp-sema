@@ -62,10 +62,9 @@ var Verbose bool
 // Execute of RenderCommand is the 'sema render' command
 func (opts *RenderCommand) Execute(args []string) error {
 	prepareSemaClient(opts.Positional.Project)
-
 	// Load defaults from config file
-	opts.parseConfigFile()
-
+	configRenderCommand := opts.parseConfigFile()
+	opts.mergeCommandOptions(configRenderCommand)
 	// Default secret name to folder basename
 	if opts.Name == "" {
 		cwdpath, err := os.Getwd()
@@ -112,7 +111,8 @@ data:
 }
 
 // Allows storing flags in a config file (uses yaml prefix 'secretGenerator')
-func (opts *RenderCommand) parseConfigFile() {
+func (opts *RenderCommand) parseConfigFile() RenderCommand {
+	var configRenderCommand RenderCommand
 	if opts.ConfigFile == "" {
 		opts.ConfigFile = ".secrets-config.yml"
 	}
@@ -121,17 +121,37 @@ func (opts *RenderCommand) parseConfigFile() {
 		if err != nil {
 			panic(err)
 		}
-		parsed := parseConfigFileData(data)
-		if parsed.Prefix != "" {
-			opts.Prefix = parsed.Prefix
-		}
-		if parsed.Name != "" {
-			opts.Name = parsed.Name
-		}
-		if parsed.Dir != "" {
-			opts.Dir = parsed.Dir
-		}
+		configRenderCommand = parseConfigFileData(data)
 	}
+	return configRenderCommand
+}
+
+func (opts *RenderCommand) mergeCommandOptions(configFileOptions RenderCommand) {
+	cmd := parser.Find("render")
+	for _, option := range cmd.Options() {
+		opt := struct {
+			Name         string
+			Value        interface{}
+			IsSet        bool
+			IsSetDefault bool
+		}{option.LongName, option.Value(), option.IsSet(), option.IsSetDefault()}
+		os.Stderr.WriteString(fmt.Sprintf(`%+v`, opt))
+	}
+
+	prefixOption := cmd.FindOptionByLongName("prefix")
+	if !prefixOption.IsSet() && configFileOptions.Prefix != "" {
+		opts.Prefix = configFileOptions.Prefix
+	}
+	nameOption := cmd.FindOptionByLongName("name")
+	if !nameOption.IsSet() && configFileOptions.Name != "" {
+		opts.Name = configFileOptions.Name
+	}
+	dirOption := cmd.FindOptionByLongName("dir")
+	if dirOption.IsSetDefault() && configFileOptions.Dir != "" {
+		opts.Dir = configFileOptions.Dir
+	}
+	opts.Handlers = append(opts.Handlers, configFileOptions.Handlers...)
+
 }
 
 func writeDevSecretFile(directory, key string, value []byte) {

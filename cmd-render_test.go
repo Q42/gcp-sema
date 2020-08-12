@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	flags "github.com/jessevdk/go-flags"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,4 +80,58 @@ secrets:
 		},
 	}
 	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
+}
+
+func TestMergeConfig(t *testing.T) {
+	// Mock data config
+	config := fmt.Sprintf(`
+name: myapp1-v4
+prefix: myapp1_v4
+secrets:
+- path: config-env.json
+  name: config-env.json
+  schema: "server/config-schema.json"
+  type: sema-schema-to-file`)
+	// Mock cmd arguments
+	args := []string{
+		"my-project",
+		"--name=very-secret",
+		// literals just like kubectl create secret
+		"--from-literal=myfile.txt=literal-value",
+		// plain files just like kubectl create secret
+		"--from-file=myfile.txt=myfile.txt",
+		// extract according to schema into a single property 'config-env.json'
+		"--from-sema-schema-to-file=config-env.json=config-schema.json",
+		// extract according to schema into environment variable literals
+		"--from-sema-schema-to-literals=config-schema.json",
+		// extract key value from SeMa into literals
+		"--from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
+	}
+
+	// Setup flag parser
+	opts := RenderCommand{}
+	parser := flags.NewParser(&opts, flags.Default)
+	parser.UnknownOptionHandler = cliParseFromHandlers
+	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommandOpts)
+	panicIfErr(err)
+	parsedConfig := parseConfigFileData([]byte(config))
+	_, err = parser.ParseArgs(args)
+	opts.Handlers = renderCommandOpts.Handlers
+	expected := RenderCommand{
+		Name:   "very-secret",
+		Prefix: "myapp1_v4",
+		Format: "yaml",
+		Handlers: []SecretHandler{
+			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
+			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
+			MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json"),
+			MakeSecretHandler("sema-schema-to-literals", "config-schema.json", ""),
+			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
+			MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json"),
+		},
+	}
+
+	renderCommandOpts.mergeCommandOptions(parsedConfig)
+	assert.Equal(t, &expected, renderCommandOpts, "Config and command line options should be merged correctly")
+
 }
