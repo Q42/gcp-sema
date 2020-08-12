@@ -117,41 +117,19 @@ func (opts *RenderCommand) parseConfigFile() {
 		opts.ConfigFile = ".secrets-config.yml"
 	}
 	if _, err := os.Stat(opts.ConfigFile); err == nil {
-		var parsed struct {
-			Name    *string             `yaml:"name"`
-			Prefix  *string             `yaml:"prefix"`
-			Dir     *string             `yaml:"dir"`
-			Secrets []map[string]string `yaml:"secrets"`
-		}
 		data, err := ioutil.ReadFile(opts.ConfigFile)
 		if err != nil {
 			panic(err)
 		}
-		err = yaml.Unmarshal([]byte(data), &parsed)
-		if err != nil {
-			panic(err)
+		parsed := parseConfigFileData(data)
+		if parsed.Prefix != "" {
+			opts.Prefix = parsed.Prefix
 		}
-
-		opts.Handlers = []SecretHandler{}
-		for _, val := range parsed.Secrets {
-			if _, ok := val["type"]; ok {
-				handler, err := ParseSecretHandler(val)
-				if err == nil {
-					opts.Handlers = append(opts.Handlers, handler)
-				} else {
-					panic(err)
-				}
-
-			}
+		if parsed.Name != "" {
+			opts.Name = parsed.Name
 		}
-		if parsed.Prefix != nil {
-			opts.Prefix = *parsed.Prefix
-		}
-		if parsed.Name != nil {
-			opts.Name = *parsed.Name
-		}
-		if parsed.Dir != nil {
-			opts.Dir = *parsed.Dir
+		if parsed.Dir != "" {
+			opts.Dir = parsed.Dir
 		}
 	}
 }
@@ -196,10 +174,10 @@ type RenderCommand struct {
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
 type RenderConfigYAML struct {
-	Name    *string
-	Prefix  *string
-	Dir     *string
-	Secrets []map[string]string
+	Name    *string             `yaml:"name"`
+	Prefix  *string             `yaml:"prefix"`
+	Dir     *string             `yaml:"dir"`
+	Secrets []map[string]string `yaml:"secrets"`
 }
 
 // For testing, repeatably executable
@@ -214,6 +192,32 @@ func parseRenderArgs(args []string) RenderCommand {
 	opts.Handlers = renderCommandOpts.Handlers
 	if err != nil {
 		os.Exit(1)
+	}
+	return opts
+}
+
+// Parse a yaml bytearray into a RenderCommand for easy testing
+func parseConfigFileData(data []byte) RenderCommand {
+	opts := RenderCommand{}
+	flags.NewParser(&opts, flags.Default)
+	var parsed RenderConfigYAML
+	err := yaml.Unmarshal([]byte(data), &parsed)
+	if err != nil {
+		panic(err)
+	}
+	opts.Name = *parsed.Name
+	opts.Prefix = *parsed.Prefix
+	opts.Handlers = []SecretHandler{}
+	for _, val := range parsed.Secrets {
+		if _, ok := val["type"]; ok {
+			handler, err := ParseSecretHandler(val)
+			if err == nil {
+				opts.Handlers = append(opts.Handlers, handler)
+			} else {
+				panic(err)
+			}
+
+		}
 	}
 	return opts
 }

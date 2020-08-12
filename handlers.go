@@ -46,6 +46,7 @@ func MakeSecretHandler(handler, name, value string) SecretHandler {
 	}
 }
 
+// ParseSecretHandler parses the different types of secret definitions into correct MakeSecretHandler calls
 func ParseSecretHandler(input map[string]string) (SecretHandler, error) {
 	defer func() {
 		// Catch any panic errors from MakeSecretHandler

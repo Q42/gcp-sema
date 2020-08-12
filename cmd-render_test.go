@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,4 +59,24 @@ func TestRenderFormat(t *testing.T) {
 	assert.Equal(t, "yaml", args.Format, "Should parse formats")
 	args = parseRenderArgs([]string{"--format=files", "my-project"})
 	assert.Equal(t, "files", args.Format, "Should parse formats")
+}
+
+func TestParseSecretConfig(t *testing.T) {
+	config := fmt.Sprintf(`
+name: myapp1-v4
+prefix: myapp1_v4
+secrets:
+- path: config-env.json
+  name: config-env.json
+  schema: "server/config-schema.json"
+  type: sema-schema-to-file`)
+	parsedConfig := parseConfigFileData([]byte(config))
+	expected := RenderCommand{
+		Name:   "myapp1-v4",
+		Prefix: "myapp1_v4",
+		Handlers: []SecretHandler{
+			MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json"),
+		},
+	}
+	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
 }
