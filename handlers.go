@@ -32,7 +32,7 @@ func (c *concreteSecretHandler) UnmarshalFlag(value string) error {
 	case 3:
 		c.SecretHandler = MakeSecretHandler(args[0], args[1], args[2])
 	default:
-		panic("--secrets array options should contain 2 or 3 values")
+		return errors.New("--secrets array options should contain 2 or 3 values")
 	}
 	return nil
 }
