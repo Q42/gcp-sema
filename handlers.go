@@ -18,6 +18,24 @@ type SecretHandler interface {
 	Populate(bucket map[string][]byte)
 }
 
+type concreteSecretHandler struct {
+	SecretHandler
+}
+
+func (c *concreteSecretHandler) UnmarshalFlag(value string) error {
+	// parse value
+	args := strings.Split(strings.TrimSpace(value), ",")
+	switch len(args) {
+	case 2:
+		c.SecretHandler = MakeSecretHandler(args[0], args[1], "")
+	case 3:
+		c.SecretHandler = MakeSecretHandler(args[0], args[1], args[2])
+	default:
+		panic("--secrets array options should contain 2 or 3 values")
+	}
+	return nil
+}
+
 type unstructuredHandler struct {
 	Type  string
 	Key   string

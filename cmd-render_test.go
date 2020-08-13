@@ -15,27 +15,28 @@ func TestParseRenderArgs(t *testing.T) {
 		"my-project",
 		"--name=very-secret",
 		// literals just like kubectl create secret
-		"--from-literal=myfile.txt=literal-value",
+		"-s literal,myfile.txt,literal-value",
 		// plain files just like kubectl create secret
-		"--from-file=myfile.txt=myfile.txt",
+		"-s file,myfile.txt,myfile.txt",
 		// extract according to schema into a single property 'config-env.json'
-		"--from-sema-schema-to-file=config-env.json=config-schema.json",
+		"-s sema-schema-to-file,config-env.json,config-schema.json",
 		// extract according to schema into environment variable literals
-		"--from-sema-schema-to-literals=config-schema.json",
+		"-s sema-schema-to-literals,config-schema.json",
 		// extract key value from SeMa into literals
-		"--from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
+		"-s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW",
+		"test",
 	})
 
 	expected := RenderCommand{
 		Format: "yaml",
 		Name:   "very-secret",
 		Dir:    "secrets",
-		Handlers: []SecretHandler{
-			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
-			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
-			MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json"),
-			MakeSecretHandler("sema-schema-to-literals", "config-schema.json", ""),
-			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
+		Handlers: []concreteSecretHandler{
+			{SecretHandler: MakeSecretHandler("literal", "myfile.txt", "literal-value")},
+			{SecretHandler: MakeSecretHandler("file", "myfile.txt", "myfile.txt")},
+			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json")},
+			{SecretHandler: MakeSecretHandler("sema-schema-to-literals", "config-schema.json", "")},
+			{SecretHandler: MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
 		},
 	}
 	expected.Positional.Project = "my-project"
@@ -75,8 +76,8 @@ secrets:
 	expected := RenderCommand{
 		Name:   "myapp1-v4",
 		Prefix: "myapp1_v4",
-		Handlers: []SecretHandler{
-			MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json"),
+		Handlers: []concreteSecretHandler{
+			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
 		},
 	}
 	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
@@ -94,46 +95,48 @@ secrets:
   type: sema-schema-to-file`)
 	// Mock cmd arguments
 	args := []string{
-		"my-project",
+		"render",
 		"--name=very-secret",
 		// literals just like kubectl create secret
-		"--from-literal=myfile.txt=literal-value",
+		"-s literal,myfile.txt,literal-value",
 		// plain files just like kubectl create secret
-		"--from-file=myfile.txt=myfile.txt",
+		"-s file,myfile.txt,myfile.txt",
 		// extract according to schema into a single property 'config-env.json'
-		"--from-sema-schema-to-file=config-env.json=config-schema.json",
+		"-s sema-schema-to-file,config-env.json,config-schema.json",
 		// extract according to schema into environment variable literals
-		"--from-sema-schema-to-literals=config-schema.json",
+		"-s sema-schema-to-literals,config-schema.json",
 		// extract key value from SeMa into literals
-		"--from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
+		"-s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW",
+		"my-project",
+		"test",
 	}
 
 	// Setup flag parser
 	opts := RenderCommand{}
-	parser := flags.NewParser(&opts, flags.Default)
-	parser.UnknownOptionHandler = cliParseFromHandlers
-	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommandOpts)
+	p := flags.NewParser(&struct{}{}, flags.Default)
+
+	cmd, err := p.AddCommand("render", renderDescription, renderDescriptionLong, &opts)
 	panicIfErr(err)
 	parsedConfig := parseConfigFileData([]byte(config))
-	_, err = parser.ParseArgs(args)
-	opts.Handlers = renderCommandOpts.Handlers
+	_, err = p.ParseArgs(args)
+
+	opts.mergeCommandOptions(cmd, parsedConfig)
+
 	expected := RenderCommand{
 		Name:   "very-secret",
 		Prefix: "myapp1_v4",
 		Format: "yaml",
 		Dir:    "secrets",
-		Handlers: []SecretHandler{
-			MakeSecretHandler("literal", "myfile.txt", "literal-value"),
-			MakeSecretHandler("file", "myfile.txt", "myfile.txt"),
-			MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json"),
-			MakeSecretHandler("sema-schema-to-literals", "config-schema.json", ""),
-			MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW"),
-			MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json"),
+		Handlers: []concreteSecretHandler{
+			{SecretHandler: MakeSecretHandler("literal", "myfile.txt", "literal-value")},
+			{SecretHandler: MakeSecretHandler("file", "myfile.txt", "myfile.txt")},
+			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json")},
+			{SecretHandler: MakeSecretHandler("sema-schema-to-literals", "config-schema.json", "")},
+			{SecretHandler: MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
+			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
 		},
 	}
 	expected.Positional.Project = "my-project"
-
-	opts.mergeCommandOptions(parsedConfig)
 	assert.Equal(t, expected, opts, "Config and command line options should be merged correctly")
 
 }

@@ -21,6 +21,7 @@ var (
 	reArgName         = regexp.MustCompile(`from-([^=]+)`)
 	reArgValue        = regexp.MustCompile(`([^=]+)(=([^=]+))?`)
 	renderCommandOpts = &RenderCommand{}
+	renderCommand     *flags.Command
 )
 
 var renderDescription = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
@@ -48,9 +49,9 @@ Configuration can also be done through YAML in .secrets-config.yml in key 'secre
 `
 
 func init() {
-	_, err := parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommandOpts)
+	var err error
+	renderCommand, err = parser.AddCommand("render", renderDescription, renderDescriptionLong, renderCommandOpts)
 	panicIfErr(err)
-	parser.UnknownOptionHandler = cliParseFromHandlers
 }
 
 // RenderPrefix is used by --from-sema-schema-to-file amongst others
@@ -61,10 +62,13 @@ var Verbose bool
 
 // Execute of RenderCommand is the 'sema render' command
 func (opts *RenderCommand) Execute(args []string) error {
+	if len(args) > 0 && args[0] == "test" {
+		return nil
+	}
 	prepareSemaClient(opts.Positional.Project)
 	// Load defaults from config file
 	configRenderCommand := opts.parseConfigFile()
-	opts.mergeCommandOptions(configRenderCommand)
+	opts.mergeCommandOptions(renderCommand, configRenderCommand)
 	// Default secret name to folder basename
 	if opts.Name == "" {
 		cwdpath, err := os.Getwd()
@@ -126,15 +130,20 @@ func (opts *RenderCommand) parseConfigFile() RenderCommand {
 	return configRenderCommand
 }
 
-func (opts *RenderCommand) mergeCommandOptions(configFileOptions RenderCommand) {
-	if opts.Prefix == "" && configFileOptions.Prefix != "" {
+func (opts *RenderCommand) mergeCommandOptions(command *flags.Command, configFileOptions RenderCommand) {
+	prefixOption := command.FindOptionByLongName("prefix")
+
+	if prefixOption.IsSetDefault() && configFileOptions.Prefix != "" {
 		opts.Prefix = configFileOptions.Prefix
 	}
-	if opts.Name == "" && configFileOptions.Name != "" {
+	nameOption := command.FindOptionByLongName("name")
+	val := nameOption.Value()
+	fmt.Println(fmt.Sprintf("nameoption value: %+v", val))
+	if nameOption.IsSetDefault() && configFileOptions.Name != "" {
 		opts.Name = configFileOptions.Name
 	}
-	// TODO remove this hardcoded bit, `IsDefault()` always returns false for some reason
-	if opts.Dir == "secrets" && configFileOptions.Dir != "" {
+	dirOption := command.FindOptionByLongName("dir")
+	if dirOption.IsSetDefault() && configFileOptions.Dir != "" {
 		opts.Dir = configFileOptions.Dir
 	}
 	opts.Handlers = append(opts.Handlers, configFileOptions.Handlers...)
@@ -170,13 +179,14 @@ type RenderCommand struct {
 	Positional struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
-	Verbose    []bool          `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format     string          `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
-	Prefix     string          `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
-	Handlers   []SecretHandler `no-flag:"y"`
-	Name       string          `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
-	Dir        string          `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
-	ConfigFile string          `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
+	Verbose  []bool                  `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Format   string                  `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
+	Prefix   string                  `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+	Handlers []concreteSecretHandler `short:"s" long:"secrets" description:"The Secret source, this can be specified multiple times"`
+	// Handlers   []concreteSecretHandler `no-flag:"y"`
+	Name       string `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
+	Dir        string `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
+	ConfigFile string `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
 }
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
@@ -191,12 +201,12 @@ type RenderConfigYAML struct {
 func parseRenderArgs(args []string) RenderCommand {
 	opts := RenderCommand{}
 	parser := flags.NewParser(&opts, flags.Default)
-	parser.UnknownOptionHandler = cliParseFromHandlers
+	parser.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) (nextArgs []string, outErr error) {
+		return cliParseFromHandlers(&opts, option, arg, args)
+	}
 
 	// Do it
-	renderCommandOpts.Handlers = []SecretHandler{}
 	_, err := parser.ParseArgs(args)
-	opts.Handlers = renderCommandOpts.Handlers
 	if err != nil {
 		os.Exit(1)
 	}
@@ -206,7 +216,6 @@ func parseRenderArgs(args []string) RenderCommand {
 // Parse a yaml bytearray into a RenderCommand for easy testing
 func parseConfigFileData(data []byte) RenderCommand {
 	opts := RenderCommand{}
-	flags.NewParser(&opts, flags.Default)
 	var parsed RenderConfigYAML
 	err := yaml.Unmarshal([]byte(data), &parsed)
 	if err != nil {
@@ -214,12 +223,12 @@ func parseConfigFileData(data []byte) RenderCommand {
 	}
 	opts.Name = *parsed.Name
 	opts.Prefix = *parsed.Prefix
-	opts.Handlers = []SecretHandler{}
+	opts.Handlers = []concreteSecretHandler{}
 	for _, val := range parsed.Secrets {
 		if _, ok := val["type"]; ok {
 			handler, err := ParseSecretHandler(val)
 			if err == nil {
-				opts.Handlers = append(opts.Handlers, handler)
+				opts.Handlers = append(opts.Handlers, concreteSecretHandler{SecretHandler: handler})
 			} else {
 				panic(err)
 			}
@@ -230,7 +239,7 @@ func parseConfigFileData(data []byte) RenderCommand {
 }
 
 // UnknownOptionHandler parses all --from-... arguments into opts.Handlers
-func cliParseFromHandlers(option string, arg flags.SplitArgument, args []string) (nextArgs []string, outErr error) {
+func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flags.SplitArgument, args []string) (nextArgs []string, outErr error) {
 	value, hasValue := arg.Value()
 	if matchedKey := reArgName.FindStringSubmatch(option); len(matchedKey) == 2 && hasValue {
 		if matchedValue := reArgValue.FindStringSubmatch(value); len(matchedValue) > 2 {
@@ -242,7 +251,7 @@ func cliParseFromHandlers(option string, arg flags.SplitArgument, args []string)
 				}
 			}()
 			handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
-			renderCommandOpts.Handlers = append(renderCommandOpts.Handlers, handler)
+			commandOptions.Handlers = append(commandOptions.Handlers, concreteSecretHandler{SecretHandler: handler})
 			return args, nil
 		}
 	}

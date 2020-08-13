@@ -16,7 +16,6 @@ func init() {
 	var err error
 	pullCommandInst, err = parser.AddCommand("pull", pullDescription, pullDescription+" See 'render' help for more information.", pullCommandOpts)
 	panicIfErr(err)
-	parser.UnknownOptionHandler = cliParseFromHandlers
 }
 
 func (opts *pullCommand) Execute(args []string) error {
