@@ -43,7 +43,7 @@ The following options are implemented:
   -s sema-schema-to-literals,config-schema.json
 
   # extract key value from SeMa into literals
-  - sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW
+  -s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW
 
 Configuration can also be done through YAML in .secrets-config.yml in key 'secretGenerator'.
 `
