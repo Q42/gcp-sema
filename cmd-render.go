@@ -27,23 +27,23 @@ var (
 var renderDescription = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
 var renderDescriptionLong = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
 
-There are multiple ways to specify a secret source, the format is --from-[handler]=[key]=[source/value].
+There are multiple ways to specify a secret source, the format is -s [handler],[key],[source/value].
 The following options are implemented:
 
   # literals just like kubectl create secret --from-literal=myfile.txt=foo-bar
-  --from-literal=myfile.txt=foo-bar
+  -s literal,myfile.txt,foo-bar
 
   # plain files just like kubectl create secret --from-file=myfile.txt=./myfile.txt
-  --from-file=myfile.txt=./myfile.txt
+  -s file,myfile.txt,./myfile.txt
 
   # extract according to schema into a single property 'config-env.json'
-  --from-sema-schema-to-file=config-env.json=config-schema.json
+  -s sema-schema-to-file,config-env.json,config-schema.json
 
   # extract according to schema into environment variable literals
-  --from-sema-schema-to-literals=config-schema.json
+  -s sema-schema-to-literals,config-schema.json
 
   # extract key value from SeMa into literals
-  --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
+  - sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW
 
 Configuration can also be done through YAML in .secrets-config.yml in key 'secretGenerator'.
 `
