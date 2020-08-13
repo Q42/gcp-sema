@@ -15,15 +15,15 @@ func TestParseRenderArgs(t *testing.T) {
 		"my-project",
 		"--name=very-secret",
 		// literals just like kubectl create secret
-		"-s literal,myfile.txt,literal-value",
+		"-s literal=myfile.txt=literal-value",
 		// plain files just like kubectl create secret
-		"-s file,myfile.txt,myfile.txt",
+		"-s file=myfile.txt=myfile.txt",
 		// extract according to schema into a single property 'config-env.json'
-		"-s sema-schema-to-file,config-env.json,config-schema.json",
+		"-s sema-schema-to-file=config-env.json=config-schema.json",
 		// extract according to schema into environment variable literals
-		"-s sema-schema-to-literals,config-schema.json",
+		"-s sema-schema-to-literals=config-schema.json",
 		// extract key value from SeMa into literals
-		"-s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW",
+		"-s sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
 		"test",
 	})
 
@@ -98,15 +98,15 @@ secrets:
 		"render",
 		"--name=very-secret",
 		// literals just like kubectl create secret
-		"-s literal,myfile.txt,literal-value",
+		"-s literal=myfile.txt=literal-value",
 		// plain files just like kubectl create secret
-		"-s file,myfile.txt,myfile.txt",
+		"-s file=myfile.txt=myfile.txt",
 		// extract according to schema into a single property 'config-env.json'
-		"-s sema-schema-to-file,config-env.json,config-schema.json",
+		"-s sema-schema-to-file=config-env.json=config-schema.json",
 		// extract according to schema into environment variable literals
-		"-s sema-schema-to-literals,config-schema.json",
+		"-s sema-schema-to-literals=config-schema.json",
 		// extract key value from SeMa into literals
-		"-s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW",
+		"-s sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW",
 		"my-project",
 		"test",
 	}

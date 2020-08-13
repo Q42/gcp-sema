@@ -31,19 +31,19 @@ There are multiple ways to specify a secret source, the format is -s [handler],[
 The following options are implemented:
 
   # literals just like kubectl create secret --from-literal=myfile.txt=foo-bar
-  -s literal,myfile.txt,foo-bar
+  -s literal=myfile.txt=foo-bar
 
   # plain files just like kubectl create secret --from-file=myfile.txt=./myfile.txt
-  -s file,myfile.txt,./myfile.txt
+  -s file=myfile.txt=./myfile.txt
 
   # extract according to schema into a single property 'config-env.json'
-  -s sema-schema-to-file,config-env.json,config-schema.json
+  -s sema-schema-to-file=config-env.json=config-schema.json
 
   # extract according to schema into environment variable literals
-  -s sema-schema-to-literals,config-schema.json
+  -s sema-schema-to-literals=config-schema.json
 
   # extract key value from SeMa into literals
-  -s sema-literal,MY_APP_SECRET,MY_APP_SECRET_NEW
+  -s sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
 
 Configuration can also be done through YAML in .secrets-config.yml in key 'secretGenerator'.
 `
