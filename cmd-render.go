@@ -201,9 +201,6 @@ type RenderConfigYAML struct {
 func parseRenderArgs(args []string) RenderCommand {
 	opts := RenderCommand{}
 	parser := flags.NewParser(&opts, flags.Default)
-	parser.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) (nextArgs []string, outErr error) {
-		return cliParseFromHandlers(&opts, option, arg, args)
-	}
 
 	// Do it
 	_, err := parser.ParseArgs(args)
@@ -250,9 +247,9 @@ func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flag
 					return
 				}
 			}()
-			handler := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
+			handler, err := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
 			commandOptions.Handlers = append(commandOptions.Handlers, concreteSecretHandler{SecretHandler: handler})
-			return args, nil
+			return args, err
 		}
 	}
 	return args, nil

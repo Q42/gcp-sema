@@ -32,11 +32,11 @@ func TestParseRenderArgs(t *testing.T) {
 		Name:   "very-secret",
 		Dir:    "secrets",
 		Handlers: []concreteSecretHandler{
-			{SecretHandler: MakeSecretHandler("literal", "myfile.txt", "literal-value")},
-			{SecretHandler: MakeSecretHandler("file", "myfile.txt", "myfile.txt")},
-			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json")},
-			{SecretHandler: MakeSecretHandler("sema-schema-to-literals", "config-schema.json", "")},
-			{SecretHandler: MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
+			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
+			{SecretHandler: makeSecretWrapper("file", "myfile.txt", "myfile.txt")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "config-schema.json")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-literals", "config-schema.json", "")},
+			{SecretHandler: makeSecretWrapper("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
 		},
 	}
 	expected.Positional.Project = "my-project"
@@ -47,7 +47,7 @@ func TestParseRenderArgs(t *testing.T) {
 
 func TestRenderLiteral(t *testing.T) {
 	obj := make(map[string][]byte, 0)
-	args := parseRenderArgs([]string{"my-project", "--format=env", "--from-literal=text.txt=foobar"})
+	args := parseRenderArgs([]string{"my-project", "--format=env", "-s literal=text.txt=foobar"})
 	args.Handlers[0].Populate(obj)
 	assert.Equal(t, []byte("foobar"), obj["text.txt"], "Literal SecretHandler should work")
 }
@@ -77,7 +77,7 @@ secrets:
 		Name:   "myapp1-v4",
 		Prefix: "myapp1_v4",
 		Handlers: []concreteSecretHandler{
-			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
 		},
 	}
 	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
@@ -128,15 +128,21 @@ secrets:
 		Format: "yaml",
 		Dir:    "secrets",
 		Handlers: []concreteSecretHandler{
-			{SecretHandler: MakeSecretHandler("literal", "myfile.txt", "literal-value")},
-			{SecretHandler: MakeSecretHandler("file", "myfile.txt", "myfile.txt")},
-			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "config-schema.json")},
-			{SecretHandler: MakeSecretHandler("sema-schema-to-literals", "config-schema.json", "")},
-			{SecretHandler: MakeSecretHandler("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
-			{SecretHandler: MakeSecretHandler("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
+			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
+			{SecretHandler: makeSecretWrapper("file", "myfile.txt", "myfile.txt")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "config-schema.json")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-literals", "config-schema.json", "")},
+			{SecretHandler: makeSecretWrapper("sema-literal", "MY_APP_SECRET", "MY_APP_SECRET_NEW")},
+			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
 		},
 	}
 	expected.Positional.Project = "my-project"
 	assert.Equal(t, expected, opts, "Config and command line options should be merged correctly")
 
+}
+
+func makeSecretWrapper(handler string, name string, value string) SecretHandler {
+	secretHandler, err := MakeSecretHandler(handler, name, value)
+	panicIfErr(err)
+	return secretHandler
 }
