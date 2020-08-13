@@ -25,7 +25,7 @@ type concreteSecretHandler struct {
 
 func (c *concreteSecretHandler) UnmarshalFlag(value string) error {
 	// parse value
-	args := strings.Split(strings.TrimSpace(value), ",")
+	args := strings.SplitN(strings.TrimSpace(value), ",", 3)
 	switch len(args) {
 	case 2:
 		c.SecretHandler = MakeSecretHandler(args[0], args[1], "")
