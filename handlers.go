@@ -18,6 +18,7 @@ type SecretHandler interface {
 	Populate(bucket map[string][]byte)
 }
 
+// concreteSecretHandler is a way to implement the Unmarshaller (UnmarshalFlag) interface from go-flags on the interface type SecretHandler.
 type concreteSecretHandler struct {
 	SecretHandler
 }
