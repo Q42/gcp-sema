@@ -137,8 +137,6 @@ func (opts *RenderCommand) mergeCommandOptions(command *flags.Command, configFil
 		opts.Prefix = configFileOptions.Prefix
 	}
 	nameOption := command.FindOptionByLongName("name")
-	val := nameOption.Value()
-	fmt.Println(fmt.Sprintf("nameoption value: %+v", val))
 	if nameOption.IsSetDefault() && configFileOptions.Name != "" {
 		opts.Name = configFileOptions.Name
 	}
