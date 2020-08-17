@@ -49,7 +49,7 @@ func resolvedSecretEqual(a, b resolvedSecret) bool {
 
 type resolvedSecret interface {
 	String() string
-	GetSecretValue() *string
+	GetSecretValue() (*string, error)
 }
 type resolvedSecretRuntime struct{ conf convictConfiguration }
 
@@ -72,8 +72,8 @@ func (r resolvedSecretRuntime) String() string {
 	return fmt.Sprintf("runtime(%s)", strings.Join(opts, " or "))
 }
 
-func (r resolvedSecretRuntime) GetSecretValue() *string {
-	return nil // injected runtime
+func (r resolvedSecretRuntime) GetSecretValue() (*string, error) {
+	return nil, nil // injected runtime
 }
 
 type resolvedSecretSema struct{ key string }
@@ -82,13 +82,17 @@ func (r resolvedSecretSema) String() string {
 	return fmt.Sprintf("secretmanager(key: %s)", r.key)
 }
 
-func (r resolvedSecretSema) GetSecretValue() *string {
+func (r resolvedSecretSema) GetSecretValue() (*string, error) {
 	secret, err := client.Get(r.key)
-	panicIfErr(err)
+	if err != nil {
+		return nil, err
+	}
 	val, err := secret.GetValue()
-	panicIfErr(err)
+	if err != nil {
+		return nil, err
+	}
 	stringValue := string(val)
-	return &stringValue
+	return &stringValue, nil
 }
 
 type semaNotFoundError struct {

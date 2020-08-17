@@ -122,7 +122,10 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
 
 	// Shove it into a nested JSON structure
-	jsonMap := hydrateSecretTree(schema.tree, allResolved)
+	jsonMap, err := hydrateSecretTree(schema.tree, allResolved)
+	if err != nil {
+		panic(err)
+	}
 	if jsonMap == nil {
 		// if the whole tree is empty, still return an empty JSON object
 		jsonMap = make(map[string]interface{}, 0)
@@ -150,19 +153,22 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	schema := parseSchemaFile(h.configSchemaFile)
 	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
 
+	var allErrors error
 	// Shove secrets in all possible environment variables
 	for _, conf := range schema.flatConfigurations {
 		key := strings.Join(conf.Path, ".")
 		if r, isSet := allResolved[key]; isSet && conf.Env != "" {
-			val := r.GetSecretValue()
+			val, err := r.GetSecretValue()
 			if val != nil {
 				bucket[conf.Env] = []byte(*val)
 				if Verbose {
 					log.Println(color.BlueString("$%s=%s\n", conf.Env, val))
 				}
 			}
+			allErrors = multiAppend(allErrors, err)
 		}
 	}
+	panicIfErr(allErrors)
 }
 
 type semaHandlerLiteral struct {

@@ -2,12 +2,12 @@ package secretmanager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	sema "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/pkg/errors"
 	"google.golang.org/api/iterator"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -93,6 +93,10 @@ func (s semaSecretWrapper) GetFullName() string {
 }
 func (s semaSecretWrapper) GetShortName() string { return s.key }
 
+func (s semaSecretWrapper) GetLink() string {
+	return fmt.Sprintf("https://console.cloud.google.com/security/secret-manager/secret/%s?project=%s", s.key, s.client.project)
+}
+
 func (s semaSecretWrapper) getLastVersion() (string, error) {
 	versions := make([]*secretmanagerpb.SecretVersion, 0)
 	it := s.client.client.ListSecretVersions(s.client.ctx, &secretmanagerpb.ListSecretVersionsRequest{Parent: fmt.Sprintf("projects/%s/secrets/%s", s.client.project, s.key)})
@@ -112,7 +116,7 @@ func (s semaSecretWrapper) getLastVersion() (string, error) {
 	}
 	versions = sortVersions(versions)
 	if len(versions) == 0 {
-		return "", ErrNoVersions
+		return "", errors.Wrap(ErrNoVersions, fmt.Sprintf(`Secret %q (%s)`, s.GetShortName(), s.GetLink()))
 	}
 	// The resource name in the format `projects/*/secrets/*/versions/*`.
 	return versions[0].Name, nil

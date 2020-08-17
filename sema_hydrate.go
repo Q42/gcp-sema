@@ -1,31 +1,31 @@
 package main
 
-import "strings"
+import (
+	"strings"
+)
 
-func hydrateSecretTree(tree *convictJSONTree, resolved map[string]resolvedSecret) interface{} {
+func hydrateSecretTree(tree *convictJSONTree, resolved map[string]resolvedSecret) (outerResult interface{}, outerErr error) {
 	if tree == nil {
-		return nil
+		return nil, nil
 	}
 	if tree.Leaf != nil {
 		resolved := resolved[strings.Join(tree.Leaf.Path, ".")]
 		if resolved == nil {
-			return nil
+			return nil, nil // unresolved, TODO err?
 		}
-		val := resolved.GetSecretValue()
-		if val == nil {
-			return nil
-		}
-		return val
+		val, err := resolved.GetSecretValue()
+		return val, err
 	}
 	result := make(map[string]interface{}, 0)
 	for key, c := range tree.Children {
-		nested := hydrateSecretTree(c, resolved)
+		nested, err := hydrateSecretTree(c, resolved)
 		if nested != nil {
 			result[key] = nested
 		}
+		outerErr = multiAppend(outerErr, err)
 	}
 	if len(result) == 0 {
-		return nil
+		return nil, outerErr
 	}
-	return result
+	return result, outerErr
 }
