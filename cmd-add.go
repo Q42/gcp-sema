@@ -45,7 +45,7 @@ func (opts *addCommand) Execute(args []string) (err error) {
 	var isExistingSecret = secret != nil
 
 	if secret == nil || status.Convert(err).Code() == codes.NotFound {
-		_, err := client.New(opts.Positional.Name, opts.Labels)
+		secret, err = client.New(opts.Positional.Name, opts.Labels)
 		if err != nil {
 			return err
 		}
