@@ -159,8 +159,8 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 		key := conf.Key()
 		if r, isSet := allResolved[key]; isSet && conf.Env != "" {
 			val, err := r.GetSecretValue()
-			if val != nil {
-				bucket[conf.Env] = []byte(*val)
+			if stringVal, ok := val.(*string); ok {
+				bucket[conf.Env] = []byte(*stringVal)
 				if Verbose {
 					log.Println(color.BlueString("$%s=%s\n", conf.Env, val))
 				}

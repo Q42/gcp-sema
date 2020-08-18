@@ -49,7 +49,7 @@ func resolvedSecretEqual(a, b resolvedSecret) bool {
 
 type resolvedSecret interface {
 	String() string
-	GetSecretValue() (*string, error)
+	GetSecretValue() (interface{}, error)
 }
 type resolvedSecretRuntime struct{ conf convictConfiguration }
 
@@ -72,7 +72,7 @@ func (r resolvedSecretRuntime) String() string {
 	return fmt.Sprintf("runtime(%s)", strings.Join(opts, " or "))
 }
 
-func (r resolvedSecretRuntime) GetSecretValue() (*string, error) {
+func (r resolvedSecretRuntime) GetSecretValue() (interface{}, error) {
 	return nil, nil // injected runtime
 }
 
@@ -82,7 +82,7 @@ func (r resolvedSecretSema) String() string {
 	return fmt.Sprintf("secretmanager(key: %s)", r.key)
 }
 
-func (r resolvedSecretSema) GetSecretValue() (*string, error) {
+func (r resolvedSecretSema) GetSecretValue() (interface{}, error) {
 	secret, err := client.Get(r.key)
 	if err != nil {
 		return nil, err
