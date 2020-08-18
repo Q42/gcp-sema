@@ -156,7 +156,7 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	var allErrors error
 	// Shove secrets in all possible environment variables
 	for _, conf := range schema.flatConfigurations {
-		key := strings.Join(conf.Path, ".")
+		key := conf.Key()
 		if r, isSet := allResolved[key]; isSet && conf.Env != "" {
 			val, err := r.GetSecretValue()
 			if val != nil {

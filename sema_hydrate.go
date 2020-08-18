@@ -1,15 +1,11 @@
 package main
 
-import (
-	"strings"
-)
-
 func hydrateSecretTree(tree *convictJSONTree, resolved map[string]resolvedSecret) (outerResult interface{}, outerErr error) {
 	if tree == nil {
 		return nil, nil
 	}
 	if tree.Leaf != nil {
-		resolved := resolved[strings.Join(tree.Leaf.Path, ".")]
+		resolved := resolved[tree.Leaf.Key()]
 		if resolved == nil {
 			return nil, nil // unresolved, TODO err?
 		}

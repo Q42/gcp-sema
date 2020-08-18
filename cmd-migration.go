@@ -204,7 +204,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 				data, _ := json.Marshal(conf.DefaultValue)
 				infos = append(infos, fmt.Sprintf("default: %s", string(data)))
 			}
-			log.Printf("%d:\t%s (%s)\n", idx, color.CyanString(strings.Join(conf.Path, ".")), strings.Join(infos, ", "))
+			log.Printf("%d:\t%s (%s)\n", idx, color.CyanString(conf.Key()), strings.Join(infos, ", "))
 			if conf.Doc != "" {
 				log.Printf("\t%s\n", color.BlueString(conf.Doc))
 			}
@@ -213,7 +213,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 			usedConfigEnvValue := false
 			usedSemaKey := false
 
-			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, strings.Join(conf.Path, "."))
+			configEnvName := fmt.Sprintf("secret %q at key %q", k8sSecret.Metadata.Name, conf.Key())
 			if node, err := k8sSecret.Lookup(conf); err == nil {
 				ok, err := isSafeCoercible(node, conf)
 				if ok {

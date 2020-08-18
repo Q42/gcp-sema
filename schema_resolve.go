@@ -106,7 +106,7 @@ func (e semaNotFoundError) Is(err error) bool {
 }
 
 func (e semaNotFoundError) Error() string {
-	return fmt.Sprintf("%s; Secret Manager keys: %q", strings.Join(e.conf.Path, "."), e.suggestedKeys)
+	return fmt.Sprintf("%s; Secret Manager keys: %q", e.conf.Key(), e.suggestedKeys)
 }
 
 // private function to ease testing with mock data
@@ -123,10 +123,10 @@ func schemaResolveSecrets(schema convictConfigSchema, availableSecretKeys []stri
 		if err != nil {
 			allErrors = append(allErrors, err)
 		} else {
-			allResolved[strings.Join(conf.Path, ".")] = resolved
+			allResolved[conf.Key()] = resolved
 		}
 		if Verbose {
-			log.Println(color.BlueString("%s:", strings.Join(conf.Path, ".")))
+			log.Println(color.BlueString("%s:", conf.Key()))
 			for _, option := range options {
 				if resolvedSecretEqual(option, resolved) {
 					log.Println(color.GreenString("- %s", option))

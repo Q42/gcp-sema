@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sort"
+	"strings"
 
 	"github.com/flynn/json5"
 	"github.com/go-errors/errors"
@@ -101,6 +102,11 @@ type convictConfiguration struct {
 	DefaultValue interface{} `json:"default"`
 	Doc          string      `json:"doc"`
 	Env          string      `json:"env"`
+}
+
+// Key is the standardized way of serializing a convictConfiguration.Path
+func (conf *convictConfiguration) Key() string {
+	return strings.Join(conf.Path, ".")
 }
 
 // Convict supports nested properties. Everything with a "default" property
