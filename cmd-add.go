@@ -30,10 +30,14 @@ type addCommand struct {
 	Force      []bool               `short:"f" long:"force" description:"force overwrite value/labels"`
 	Verbose    []bool               `short:"v" long:"verbose" description:"Show verbose debug information"`
 	Data       string               `hidden:"yes"`
+	// private
+	client secretmanager.KVClient
 }
 
 func (opts *addCommand) Execute(args []string) (err error) {
-	prepareSemaClient(opts.Positional.Project)
+	if opts.client == nil {
+		opts.client = prepareSemaClient(opts.Positional.Project)
+	}
 
 	if opts.Data == "" {
 		opts.Data = readStringSilently("Enter secret value: ")
@@ -41,18 +45,19 @@ func (opts *addCommand) Execute(args []string) (err error) {
 
 	// Upsert "Secret" (the container)
 	var secret secretmanager.KVValue
-	secret, err = client.Get(opts.Positional.Name)
+	secret, err = opts.client.Get(opts.Positional.Name)
 	var isExistingSecret = secret != nil
 
 	if secret == nil || status.Convert(err).Code() == codes.NotFound {
-		secret, err = client.New(opts.Positional.Name, opts.Labels)
+		secret, err = opts.client.New(opts.Positional.Name, opts.Labels)
 		if err != nil {
 			return err
 		}
-	} else if !reflect.DeepEqual(secret.GetLabels(), opts.Labels) {
+	} else if existingLabels := secret.GetLabels(); !equalLabels(existingLabels, opts.Labels) {
 		if len(opts.Force) == 0 {
-			log.Println("Existing labels:", formatLabels(secret.GetLabels()))
-			return errors.New("Please set the same labels, or use --force to update the already existing secret")
+			return fmt.Errorf(`Please set the same labels, or use --force to update the already existing secret
+  Existing labels: %s
+  New labels:      %s`, formatLabels(existingLabels), formatLabels(opts.Labels))
 		}
 		err = secret.SetLabels(opts.Labels)
 		if err != nil {
@@ -100,4 +105,14 @@ func formatLabels(mp map[string]string) string {
 		labels = append(labels, fmt.Sprintf("-l %s:%s", k, v))
 	}
 	return strings.Join(labels, " ")
+}
+
+func equalLabels(mpA map[string]string, mpB map[string]string) bool {
+	// Unset labels will make regular reflect.DeepEqual insufficient, since:
+	// reflect.DeepEqual(make(map[string]string, 0), nil) == false
+	// So we allow empty maps to be equal with nil values
+	if mpA == nil || mpB == nil || len(mpA) == 0 || len(mpB) == 0 {
+		return len(mpA) == len(mpB)
+	}
+	return reflect.DeepEqual(mpA, mpB)
 }
