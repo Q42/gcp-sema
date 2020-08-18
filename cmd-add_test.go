@@ -19,6 +19,16 @@ func TestAddForceOverwrite(t *testing.T) {
 	secretData, err := secret.GetValue()
 	assert.Equal(t, "baz1", string(secretData))
 
+	// Update secret with changed labels
+	secret, _ = kv.Get("withlabels")
+	secret.SetLabels(map[string]string{"a": "b"})
+	cmdOpts = addCommand{Positional: addCommandPositional{"cl-test", "withlabels"}, Data: "baz1", Labels: map[string]string{"a": "different"}, client: kv, Force: []bool{true}}
+	err = cmdOpts.Execute([]string{})
+	assert.NoError(t, err)
+	secretData, err = secret.GetValue()
+	assert.Equal(t, "baz1", string(secretData))
+	assert.Equal(t, map[string]string{"a": "different"}, secret.GetLabels())
+
 	// Update secret without labels
 	secret, _ = kv.Get("withoutlabels")
 	cmdOpts = addCommand{Positional: addCommandPositional{"cl-test", "withoutlabels"}, Data: "baz2", client: kv, Force: []bool{true}}
