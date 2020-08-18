@@ -54,18 +54,12 @@ func init() {
 	panicIfErr(err)
 }
 
-// RenderPrefix is used by --from-sema-schema-to-file amongst others
-var RenderPrefix string
-
-// Verbose is used by --from-sema-schema-to-file amongst others
-var Verbose bool
-
 // Execute of RenderCommand is the 'sema render' command
 func (opts *RenderCommand) Execute(args []string) error {
 	if len(args) > 0 && args[0] == "test" {
 		return nil
 	}
-	prepareSemaClient(opts.Positional.Project)
+	client := prepareSemaClient(opts.Positional.Project)
 	// Load defaults from config file
 	configRenderCommand := opts.parseConfigFile()
 	opts.mergeCommandOptions(renderCommand, configRenderCommand)
@@ -76,9 +70,8 @@ func (opts *RenderCommand) Execute(args []string) error {
 		opts.Name = path.Base(cwdpath)
 	}
 
-	// Globally retrieved variables:
-	RenderPrefix = opts.Prefix
-	Verbose = len(opts.Verbose) > 0
+	// Inject SeMa client into handlers:
+	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0})
 
 	// Give all handlers a go to write to the secret data
 	data := make(map[string][]byte, 0)

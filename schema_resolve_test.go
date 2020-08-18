@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,10 +20,10 @@ func TestSchemaResolving(t *testing.T) {
 	config, err := parseSchema([]byte(exampleSchema2))
 	assert.Equal(t, nil, err)
 
-	secretManagerNonprefixed := []string{"projects/foobar/secrets/redis_shards"}
-	secretManagerPrefixed := []string{"projects/foobar/secrets/myapp4_redis_shards"}
+	secretManagerNonprefixed := secretmanager.NewMockClient("my-project", "projects/foobar/secrets/redis_shards", "1,2,3,4,5")
+	secretManagerPrefixed := secretmanager.NewMockClient("my-project", "projects/foobar/secrets/myapp4_redis_shards", "a,b,c,d,e")
 
-	resolved := schemaResolveSecrets(config, nil)
+	resolved := schemaResolver{Client: secretmanager.NewMockClient("my-project")}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["redis.shards"])
 
@@ -34,14 +35,14 @@ func TestSchemaResolving(t *testing.T) {
 	////////////////
 
 	// Non prefixed
-	RenderPrefix = ""
-	result, _, err := schemaResolveSecret(shardConfig, secretManagerNonprefixed)
+	keys, _ := secretManagerNonprefixed.ListKeys()
+	result, _, err := schemaResolver{Prefix: ""}.resolveConf(shardConfig, secretmanager.SecretShortNames(keys))
 	assert.Equal(t, resolvedSecretSema{key: "redis_shards"}, result)
 	assert.Equal(t, nil, err)
 
 	// Prefixed
-	RenderPrefix = "myapp4"
-	result, _, err = schemaResolveSecret(shardConfig, secretManagerPrefixed)
+	keys, _ = secretManagerPrefixed.ListKeys()
+	result, _, err = schemaResolver{Prefix: "myapp4"}.resolveConf(shardConfig, secretmanager.SecretShortNames(keys))
 	assert.IsType(t, resolvedSecretSema{}, result)
 	assert.Equal(t, resolvedSecretSema{key: "myapp4_redis_shards"}, result)
 	assert.Equal(t, nil, err)
@@ -51,16 +52,14 @@ func TestSchemaResolving(t *testing.T) {
 	//////////////////////
 
 	// Non prefixed
-	RenderPrefix = ""
-	resolved = schemaResolveSecrets(config, secretManagerNonprefixed)
+	resolved = schemaResolver{Client: secretManagerNonprefixed, Prefix: ""}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: logConfig}, resolved["log.level"])
-	assert.EqualValues(t, resolvedSecretSema{key: "redis_shards"}, resolved["redis.shards"])
+	assert.EqualValues(t, resolvedSecretSema{key: "redis_shards", client: secretManagerNonprefixed}, resolved["redis.shards"])
 
 	// Prefixed
-	RenderPrefix = "myapp4"
-	resolved = schemaResolveSecrets(config, secretManagerPrefixed)
+	resolved = schemaResolver{Client: secretManagerPrefixed, Prefix: "myapp4"}.Resolve(config)
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
-	assert.EqualValues(t, resolvedSecretSema{key: "myapp4_redis_shards"}, resolved["redis.shards"])
+	assert.EqualValues(t, resolvedSecretSema{key: "myapp4_redis_shards", client: secretManagerPrefixed}, resolved["redis.shards"])
 }

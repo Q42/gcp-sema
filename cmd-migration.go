@@ -57,7 +57,7 @@ type migrateCommand struct {
 
 // Execute runs the migration command
 func (opts *migrateCommand) Execute(args []string) error {
-	prepareSemaClient(opts.getProject())
+	client := prepareSemaClient(opts.getProject())
 
 	var heading = color.New(color.Bold, color.Underline)
 	heading.Println("Migration")

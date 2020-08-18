@@ -6,15 +6,24 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 )
 
-func schemaResolveSecret(conf convictConfiguration, availableSecretKeys []string) (result resolvedSecret, options []resolvedSecret, err error) {
+type schemaResolver struct {
+	Client  secretmanager.KVClient
+	Prefix  string
+	Verbose bool
+	// private
+	cachedAvailableKeys *[]string
+}
+
+func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecretKeys []string) (result resolvedSecret, options []resolvedSecret, err error) {
 	// enumerate all places we want to look for this secret
-	suggestedKeys := convictToSemaKey(RenderPrefix, conf.Path)
+	suggestedKeys := convictToSemaKey(r.Prefix, conf.Path)
 
 	for _, suggestedKey := range suggestedKeys {
-		options = append(options, resolvedSecretSema{key: suggestedKey})
+		options = append(options, resolvedSecretSema{key: suggestedKey, client: r.Client})
 	}
 	runtimeOpts := makeRuntimeResolve(conf)
 	options = append(options, runtimeOpts...)
@@ -25,7 +34,7 @@ func schemaResolveSecret(conf convictConfiguration, availableSecretKeys []string
 		for _, availableKey := range availableSecretKeys {
 			// if it matches, return it
 			if trimPathPrefix(availableKey) == suggestedKey {
-				return resolvedSecretSema{key: suggestedKey}, options, nil
+				return resolvedSecretSema{key: suggestedKey, client: r.Client}, options, nil
 			}
 		}
 	}
@@ -76,14 +85,17 @@ func (r resolvedSecretRuntime) GetSecretValue() (interface{}, error) {
 	return nil, nil // injected runtime
 }
 
-type resolvedSecretSema struct{ key string }
+type resolvedSecretSema struct {
+	key    string
+	client secretmanager.KVClient
+}
 
 func (r resolvedSecretSema) String() string {
 	return fmt.Sprintf("secretmanager(key: %s)", r.key)
 }
 
 func (r resolvedSecretSema) GetSecretValue() (interface{}, error) {
-	secret, err := client.Get(r.key)
+	secret, err := r.client.Get(r.key)
 	if err != nil {
 		return nil, err
 	}
@@ -110,22 +122,31 @@ func (e semaNotFoundError) Error() string {
 }
 
 // private function to ease testing with mock data
-func schemaResolveSecrets(schema convictConfigSchema, availableSecretKeys []string) map[string]resolvedSecret {
-	if Verbose {
+func (r schemaResolver) Resolve(schema convictConfigSchema) map[string]resolvedSecret {
+	if r.Verbose {
 		log.Println(color.BlueString("SecretManager verbose output"))
+	}
+
+	// Get/cache available secrets: reused by multiple invocations
+	if r.cachedAvailableKeys == nil {
+		availableSecrets, err := r.Client.ListKeys()
+		availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
+		panicIfErr(err)
+		mapStrings(availableSecretKeys, trimPathPrefix) // otherwise they wont match during 'resolveConf' TODO: test need for/remove this statement!
+		r.cachedAvailableKeys = &availableSecretKeys
 	}
 
 	// Resolve all configuration options
 	allErrors := make([]error, 0)
 	allResolved := make(map[string]resolvedSecret, 0)
 	for _, conf := range schema.flatConfigurations {
-		resolved, options, err := schemaResolveSecret(conf, availableSecretKeys)
+		resolved, options, err := r.resolveConf(conf, *r.cachedAvailableKeys)
 		if err != nil {
 			allErrors = append(allErrors, err)
 		} else {
 			allResolved[conf.Key()] = resolved
 		}
-		if Verbose {
+		if r.Verbose {
 			log.Println(color.BlueString("%s:", conf.Key()))
 			for _, option := range options {
 				if resolvedSecretEqual(option, resolved) {
@@ -137,7 +158,7 @@ func schemaResolveSecrets(schema convictConfigSchema, availableSecretKeys []stri
 		}
 	}
 
-	if Verbose {
+	if r.Verbose {
 		log.Println()
 	}
 

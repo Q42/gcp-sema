@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 )
 
@@ -109,17 +108,12 @@ func (h *fileHandler) Populate(bucket map[string][]byte) {
 type semaHandlerSingleKey struct {
 	key              string
 	configSchemaFile string
+	resolver         schemaResolver
 }
 
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
-	availableSecrets, err := client.ListKeys()
-	availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
-	panicIfErr(err)
-
-	mapStrings(availableSecretKeys, trimPathPrefix) // otherwise they wont match during 'schemaResolveSecrets'
-
 	schema := parseSchemaFile(h.configSchemaFile)
-	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
+	allResolved := h.resolver.Resolve(schema)
 
 	// Shove it into a nested JSON structure
 	jsonMap, err := hydrateSecretTree(schema.tree, allResolved)
@@ -135,7 +129,7 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 		panic(err)
 	}
 
-	if Verbose {
+	if h.resolver.Verbose {
 		log.Println(color.BlueString("Generated value for key '%s':\n%s\n", h.key, string(jsonData)))
 	}
 	bucket[h.key] = jsonData
@@ -143,15 +137,12 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 
 type semaHandlerEnvironmentVariables struct {
 	configSchemaFile string
+	resolver         schemaResolver
 }
 
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
-	availableSecrets, err := client.ListKeys()
-	availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
-	panicIfErr(err)
-
 	schema := parseSchemaFile(h.configSchemaFile)
-	allResolved := schemaResolveSecrets(schema, availableSecretKeys)
+	allResolved := h.resolver.Resolve(schema)
 
 	var allErrors error
 	// Shove secrets in all possible environment variables
@@ -161,7 +152,7 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 			val, err := r.GetSecretValue()
 			if stringVal, ok := val.(*string); ok {
 				bucket[conf.Env] = []byte(*stringVal)
-				if Verbose {
+				if h.resolver.Verbose {
 					log.Println(color.BlueString("$%s=%s\n", conf.Env, val))
 				}
 			}
@@ -172,12 +163,13 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 }
 
 type semaHandlerLiteral struct {
-	key    string
-	secret string
+	key      string
+	secret   string
+	resolver schemaResolver
 }
 
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
-	secret, err := client.Get(h.secret)
+	secret, err := h.resolver.Client.Get(h.secret)
 	panicIfErr(err)
 	data, err := secret.GetValue()
 	bucket[h.key] = data

@@ -8,7 +8,7 @@ type dummyCommand struct{}
 
 // Execute runs the dummy command
 func (*dummyCommand) Execute(args []string) error {
-	prepareSemaClient("my-project")
+	client := prepareSemaClient("my-project")
 
 	// Dummy:
 	secrets, err := client.ListKeys()
