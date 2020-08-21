@@ -53,6 +53,8 @@ type migrateCommand struct {
 	KubernetesSecretCmd  string `short:"c" long:"kubernetesSecretCommand" description:"Explicitly specify which kubectl command to run to get the k8s secret."`
 	Mode                 string `short:"m" long:"mode" default:"literal" choice:"literal" choice:"multi" description:"Defines how secret data is divided over Secret Manager secrets"`
 	Force                []bool `short:"f" long:"force" description:"Overwrite existing secret & labels"`
+	// Allow writing to file
+	Plan *string `short:"p" long:"plan" description:"Write out a script file instead of directly applying changes to the Secret Manager"`
 }
 
 // Execute runs the migration command
@@ -269,8 +271,15 @@ func (opts *migrateCommand) Execute(args []string) error {
 		log.Println("-", action.Explainer())
 	}
 	log.Println()
-
-	if prompt("Continue? [y/N] ") != "y" {
+	if opts.Plan != nil {
+		planStr := "#!/usr/bin/env bash\n"
+		for _, action := range actions {
+			planStr += action.FormatCmd() + "\n"
+		}
+		ioutil.WriteFile(*opts.Plan, []byte(planStr), 0644)
+		color.Blue("Generated plan %q", *opts.Plan)
+		os.Exit(0)
+	} else if prompt("Continue? [y/N] ") != "y" {
 		color.Red("Aborted")
 		os.Exit(127)
 	}
@@ -436,10 +445,12 @@ func getLegacySecretConfiguration() (config *legacySecretConfig, err error) {
 type ProposedAction interface {
 	Explainer() string
 	Func() func() error
+	FormatCmd() string
 }
 
 type manualAction struct {
 	Action string
+	Cmd    string
 }
 
 func (a manualAction) Explainer() string {
@@ -447,6 +458,12 @@ func (a manualAction) Explainer() string {
 }
 func (a manualAction) Func() func() error {
 	return func() error { return nil }
+}
+func (a manualAction) FormatCmd() string {
+	if a.Cmd != "" {
+		return a.Cmd
+	}
+	return fmt.Sprintf("# %q", a.Explainer()) // # "Do something\nsplit over multiple lines.\n"
 }
 
 func (a *addCommand) Explainer() string {
@@ -497,9 +514,12 @@ func (conf *RenderConfigYAML) editSuggestion() string {
 }
 
 func (conf *RenderConfigYAML) actions() []ProposedAction {
+	generatorCmd := "generators:\n- command: \"sema render $PROJECT\""
 	return []ProposedAction{manualAction{
 		Action: fmt.Sprintf("Manually update .secrets-config.yml to include:\n%s", color.BlueString(conf.editSuggestion())),
+		Cmd:    fmt.Sprintf("echo 'update .secrets-config.yml to include: '; cat <<EOF\n%s\nEOF", conf.editSuggestion()),
 	}, manualAction{
-		Action: fmt.Sprintf("Manually update deploy configuration to include:\n%s", color.BlueString("generators:\n- command: \"sema render $PROJECT\"")),
+		Action: fmt.Sprintf("Manually update deploy configuration to include:\n%s", color.BlueString(generatorCmd)),
+		Cmd:    fmt.Sprintf("echo 'update deploy configuration to include: '; cat <<EOF\n%s\nEOF", generatorCmd),
 	}}
 }

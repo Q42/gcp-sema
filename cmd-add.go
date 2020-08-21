@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,6 +33,17 @@ type addCommand struct {
 	Data       string               `hidden:"yes"`
 	// private
 	client secretmanager.KVClient
+}
+
+func (opts *addCommand) FormatCmd() string {
+	cmd := fmt.Sprintf(`sema add %q %q %s`, opts.Positional.Project, opts.Positional.Name, formatLabels(opts.Labels))
+	if len(opts.Force) > 0 && opts.Force[0] {
+		cmd += " -f"
+	}
+	if len(opts.Force) > 0 && opts.Force[0] {
+		cmd += " -v"
+	}
+	return fmt.Sprintf(`echo "%s" | base64 -D | %s`, base64.StdEncoding.EncodeToString([]byte(opts.Data)), cmd)
 }
 
 func (opts *addCommand) Execute(args []string) (err error) {
