@@ -14,6 +14,7 @@ type convictFormat interface {
 	Coerce(input string) (interface{}, error)
 	Flatten(input interface{}) (string, error)
 	String() string
+	IsOptional() bool
 }
 
 type convictFormatAny struct{}
@@ -31,6 +32,10 @@ func (f convictFormatAny) Coerce(input string) (interface{}, error) {
 func (f convictFormatAny) Flatten(input interface{}) (string, error) {
 	// TODO: where do we use this; how will it be handled in the app?
 	return fmt.Sprint(input), nil
+}
+
+func (f convictFormatAny) IsOptional() bool {
+	return true
 }
 
 type convictFormatString struct {
@@ -73,6 +78,11 @@ func (f convictFormatString) String() string {
 	return fmt.Sprintf("format: %v", f.actualFormat)
 }
 
+func (f convictFormatString) IsOptional() bool {
+	stringFmt, isString := f.actualFormat.(string)
+	return isString && strings.Contains(stringFmt, "optional")
+}
+
 type convictFormatArray struct {
 }
 
@@ -99,6 +109,10 @@ func (f convictFormatArray) Flatten(input interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("Unsupported array type: %q", reflect.TypeOf(input))
 	}
+}
+
+func (f convictFormatArray) IsOptional() bool {
+	return false
 }
 
 type convictFormatPort struct{}
@@ -133,4 +147,14 @@ func (f convictFormatBoolean) String() string {
 }
 func (f convictFormatInt) String() string {
 	return fmt.Sprintf("format: %s", f.actualFormat)
+}
+
+func (f convictFormatPort) IsOptional() bool {
+	return false
+}
+func (f convictFormatBoolean) IsOptional() bool {
+	return false
+}
+func (f convictFormatInt) IsOptional() bool {
+	return false
 }

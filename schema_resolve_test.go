@@ -13,6 +13,9 @@ const exampleSchema2 = `{
   },
   "redis": {
     "shards": { "default": null, "format": "Array", "doc": "bla", "env": "REDIS_SHARDS" },
+  },
+  "encryption": {
+	"ssh_key": { "default": null, "format": "string-optional" },
   }
 }`
 
@@ -29,6 +32,7 @@ func TestSchemaResolving(t *testing.T) {
 
 	logConfig := resolved["log.level"].(resolvedSecretRuntime).conf
 	shardConfig := resolved["redis.shards"].(resolvedSecretRuntime).conf
+	encryptionConfig := resolved["encryption.ssh_key"].(resolvedSecretRuntime).conf
 
 	////////////////
 	// One by one //
@@ -54,8 +58,10 @@ func TestSchemaResolving(t *testing.T) {
 	// Non prefixed
 	resolved = schemaResolver{Client: secretManagerNonprefixed, Prefix: ""}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
+	assert.IsType(t, resolvedSecretRuntime{}, resolved["encryption.ssh_key"])
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: logConfig}, resolved["log.level"])
+	assert.EqualValues(t, resolvedSecretRuntime{conf: encryptionConfig}, resolved["encryption.ssh_key"])
 	assert.EqualValues(t, resolvedSecretSema{key: "redis_shards", client: secretManagerNonprefixed}, resolved["redis.shards"])
 
 	// Prefixed

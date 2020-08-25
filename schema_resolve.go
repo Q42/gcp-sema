@@ -63,7 +63,7 @@ type resolvedSecret interface {
 type resolvedSecretRuntime struct{ conf convictConfiguration }
 
 func makeRuntimeResolve(conf convictConfiguration) []resolvedSecret {
-	if conf.DefaultValue != nil || conf.Env != "" {
+	if conf.DefaultValue != nil || conf.Env != "" || conf.Format.IsOptional() {
 		return []resolvedSecret{resolvedSecretRuntime{conf: conf}}
 	}
 	return nil
