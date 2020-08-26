@@ -209,9 +209,9 @@ func parseConfigFileData(data []byte) RenderCommand {
 	if err != nil {
 		panic(err)
 	}
-	opts.Name = *parsed.Name
-	opts.Prefix = *parsed.Prefix
-	opts.Dir = *parsed.Dir
+	opts.Name = valueOrEmpty(parsed.Name)
+	opts.Prefix = valueOrEmpty(parsed.Prefix)
+	opts.Dir = valueOrEmpty(parsed.Dir)
 	opts.Handlers = []concreteSecretHandler{}
 	for _, val := range parsed.Secrets {
 		if _, ok := val["type"]; ok {
@@ -253,4 +253,11 @@ func sortedKeys(mp map[string][]byte) (keys []string) {
 	}
 	sort.Strings(keys)
 	return
+}
+
+func valueOrEmpty(str *string) string {
+	if str == nil {
+		return ""
+	}
+	return *str
 }
