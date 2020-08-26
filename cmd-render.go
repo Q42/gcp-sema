@@ -211,6 +211,7 @@ func parseConfigFileData(data []byte) RenderCommand {
 	}
 	opts.Name = *parsed.Name
 	opts.Prefix = *parsed.Prefix
+	opts.Dir = *parsed.Dir
 	opts.Handlers = []concreteSecretHandler{}
 	for _, val := range parsed.Secrets {
 		if _, ok := val["type"]; ok {
