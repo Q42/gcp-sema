@@ -16,6 +16,7 @@ const exampleSchema2 = `{
   },
   "encryption": {
 	"ssh_key": { "default": null, "format": "string-optional" },
+	"opt_int": { "default": null, "format": "int-optional" },
   }
 }`
 
@@ -33,6 +34,7 @@ func TestSchemaResolving(t *testing.T) {
 	logConfig := resolved["log.level"].(resolvedSecretRuntime).conf
 	shardConfig := resolved["redis.shards"].(resolvedSecretRuntime).conf
 	encryptionConfig := resolved["encryption.ssh_key"].(resolvedSecretRuntime).conf
+	optIntConfig := resolved["encryption.opt_int"].(resolvedSecretRuntime).conf
 
 	////////////////
 	// One by one //
@@ -59,9 +61,11 @@ func TestSchemaResolving(t *testing.T) {
 	resolved = schemaResolver{Client: secretManagerNonprefixed, Prefix: ""}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["encryption.ssh_key"])
+	assert.IsType(t, resolvedSecretRuntime{}, resolved["encryption.opt_int"])
 	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: logConfig}, resolved["log.level"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: encryptionConfig}, resolved["encryption.ssh_key"])
+	assert.EqualValues(t, resolvedSecretRuntime{conf: optIntConfig}, resolved["encryption.opt_int"])
 	assert.EqualValues(t, resolvedSecretSema{key: "redis_shards", client: secretManagerNonprefixed}, resolved["redis.shards"])
 
 	// Prefixed

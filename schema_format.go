@@ -156,5 +156,6 @@ func (f convictFormatBoolean) IsOptional() bool {
 	return false
 }
 func (f convictFormatInt) IsOptional() bool {
-	return false
+	stringFmt := f.actualFormat
+	return strings.Contains(stringFmt, "optional")
 }

@@ -102,6 +102,7 @@ type convictConfiguration struct {
 	DefaultValue interface{} `json:"default"`
 	Doc          string      `json:"doc"`
 	Env          string      `json:"env"`
+	Optional     bool
 }
 
 // Key is the standardized way of serializing a convictConfiguration.Path
