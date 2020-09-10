@@ -154,14 +154,15 @@ func writeDevSecretFile(directory, key string, value []byte) {
 		if confirmed {
 			err = ioutil.WriteFile(filepath, value, 0755)
 			if err != nil {
-				panic(fmt.Sprintf("error writing to file %s\n err: %s", filepath, err.Error()))
+				panic(fmt.Sprintf("Error writing to file %s\n err: %s", filepath, err.Error()))
 			}
 		}
 	} else {
 		err = ioutil.WriteFile(filepath, value, 0755)
 		if err != nil {
-			panic(fmt.Sprintf("error writing to file %s\nerr: %s", filepath, err.Error()))
+			panic(fmt.Sprintf("Error writing to file %s\nerr: %s", filepath, err.Error()))
 		}
+		fmt.Println(fmt.Sprintf("Rendered %s", filepath))
 	}
 }
 
