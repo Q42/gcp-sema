@@ -10,6 +10,13 @@ import (
 	"github.com/fatih/color"
 )
 
+// SchemaResolver -
+type SchemaResolver interface {
+	Resolve(schema convictConfigSchema) map[string]resolvedSecret
+	IsVerbose() bool
+	GetClient() secretmanager.KVClient
+}
+
 type schemaResolver struct {
 	Client  secretmanager.KVClient
 	Prefix  string
@@ -17,6 +24,16 @@ type schemaResolver struct {
 	Matcher Matcher
 	// private
 	cachedAvailable []secretmanager.KVValue
+}
+
+// IsVerbose -
+func (r schemaResolver) IsVerbose() bool {
+	return r.Verbose
+}
+
+// GetClient -
+func (r schemaResolver) GetClient() secretmanager.KVClient {
+	return r.Client
 }
 
 // Matcher -
@@ -29,6 +46,10 @@ var defaultMatcher Matcher = func(c convictConfiguration, s secretmanager.KVValu
 func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecrets []secretmanager.KVValue) (result resolvedSecret, options []resolvedSecret, err error) {
 	// enumerate all places we want to look for this secret
 	suggestedKeys := convictToSemaKey(r.Prefix, conf.Path)
+
+	if r.Matcher == nil {
+		r.Matcher = defaultMatcher
+	}
 
 	for _, suggestedKey := range suggestedKeys {
 		options = append(options, resolvedSecretSema{key: suggestedKey, client: r.Client, kv: nil})

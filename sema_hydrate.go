@@ -26,14 +26,14 @@ func hydrateSecretTree(tree *convictJSONTree, resolved map[string]resolvedSecret
 	return result, outerErr
 }
 
-func injectSemaClient(handlers []concreteSecretHandler, schemaResolver schemaResolver) (returned []concreteSecretHandler) {
+func injectSemaClient(handlers []concreteSecretHandler, schemaResolver SchemaResolver) (returned []concreteSecretHandler) {
 	for _, h := range handlers {
 		returned = append(returned, h.injectSemaClient(schemaResolver))
 	}
 	return
 }
 
-func (c concreteSecretHandler) injectSemaClient(schemaResolver schemaResolver) concreteSecretHandler {
+func (c concreteSecretHandler) injectSemaClient(schemaResolver SchemaResolver) concreteSecretHandler {
 	switch s := c.SecretHandler.(type) {
 	case *semaHandlerEnvironmentVariables:
 		s.resolver = schemaResolver

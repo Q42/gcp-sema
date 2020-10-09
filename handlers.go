@@ -124,7 +124,7 @@ func (h *fileHandler) Annotate(annotations map[string]string) {
 type semaHandlerSingleKey struct {
 	key              string
 	configSchemaFile string
-	resolver         schemaResolver
+	resolver         SchemaResolver
 	// private
 	cacheSchema   convictConfigSchema
 	cacheResolved map[string]resolvedSecret
@@ -150,7 +150,7 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 		panic(err)
 	}
 
-	if h.resolver.Verbose {
+	if h.resolver.IsVerbose() {
 		log.Println(color.BlueString("Generated value for key '%s':\n%s\n", h.key, string(jsonData)))
 	}
 	bucket[h.key] = jsonData
@@ -164,7 +164,7 @@ func (h *semaHandlerSingleKey) Annotate(annotations map[string]string) {
 
 type semaHandlerEnvironmentVariables struct {
 	configSchemaFile string
-	resolver         schemaResolver
+	resolver         SchemaResolver
 	// private
 	cacheSchema   convictConfigSchema
 	cacheResolved map[string]resolvedSecret
@@ -190,7 +190,7 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 			val, err := r.GetSecretValue()
 			if stringVal, ok := val.(*string); ok {
 				bucket[conf.Env] = []byte(*stringVal)
-				if h.resolver.Verbose {
+				if h.resolver.IsVerbose() {
 					log.Println(color.BlueString("$%s=%s\n", conf.Env, val))
 				}
 			}
@@ -209,15 +209,15 @@ func (h *semaHandlerEnvironmentVariables) Annotate(annotations map[string]string
 type semaHandlerLiteral struct {
 	key      string
 	secret   string
-	resolver schemaResolver
+	resolver SchemaResolver
 	//private
 	cacheResolved resolvedSecretSema
 }
 
 func (h *semaHandlerLiteral) Prepare(bucket map[string]bool) {
-	secret, err := h.resolver.Client.Get(h.secret)
+	secret, err := h.resolver.GetClient().Get(h.secret)
 	panicIfErr(err)
-	h.cacheResolved = resolvedSecretSema{key: h.secret, client: h.resolver.Client, kv: secret}
+	h.cacheResolved = resolvedSecretSema{key: h.secret, client: h.resolver.GetClient(), kv: secret}
 	bucket[h.key] = true
 }
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {

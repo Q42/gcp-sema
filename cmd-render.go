@@ -73,16 +73,18 @@ func (opts *RenderCommand) Execute(args []string) error {
 	// Inject SeMa client into handlers:
 	var client secretmanager.KVClient
 	var matcher = defaultMatcher
-	if opts.OfflineLookupFile != "" {
-		client, matcher = prepareOfflineClient(opts.OfflineLookupFile)
+	var resolver SchemaResolver
+	if opts.MockSema {
+		client, resolver = prepareMockClient()
 	} else {
-		client = prepareSemaClient(opts.Positional.Project)
+		if opts.OfflineLookupFile != "" {
+			client = prepareOfflineClient(opts.OfflineLookupFile)
+		} else {
+			client = prepareSemaClient(opts.Positional.Project)
+		}
+		resolver = schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0, Matcher: matcher}
 	}
-	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{
-		Client:  client,
-		Prefix:  opts.Prefix,
-		Verbose: len(opts.Verbose) > 0,
-		Matcher: matcher})
+	opts.Handlers = injectSemaClient(opts.Handlers, resolver)
 
 	// Give all handlers a go at downloading key-value lists/preparations
 	// Give all handlers a go to write annotation data
@@ -222,6 +224,7 @@ type RenderCommand struct {
 	ConfigFile string `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
 	// Debugging/offline usage
 	OfflineLookupFile string ` env:"OFFLINE" long:"offline" description:"You might want to run sema as an unprivileged user, for testing/validation purposes for example. Use this to provide fake/real/offline secrets."`
+	MockSema          bool   ` env:"MOCK_SEMA" long:"mock-sema" description:"If you want to run without having Secret-Manager access"`
 }
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
