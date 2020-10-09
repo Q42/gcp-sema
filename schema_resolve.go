@@ -14,8 +14,16 @@ type schemaResolver struct {
 	Client  secretmanager.KVClient
 	Prefix  string
 	Verbose bool
+	Matcher Matcher
 	// private
 	cachedAvailable []secretmanager.KVValue
+}
+
+// Matcher -
+type Matcher = func(convictConfiguration, secretmanager.KVValue, string) bool
+
+var defaultMatcher Matcher = func(c convictConfiguration, s secretmanager.KVValue, key string) bool {
+	return s.GetShortName() == key
 }
 
 func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecrets []secretmanager.KVValue) (result resolvedSecret, options []resolvedSecret, err error) {
@@ -33,7 +41,7 @@ func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecrets 
 		// enumerate all secrets that we have set in SecretManager
 		for _, available := range availableSecrets {
 			// if it matches, return it
-			if available.GetShortName() == suggestedKey {
+			if r.Matcher(conf, available, suggestedKey) {
 				return resolvedSecretSema{key: suggestedKey, client: r.Client, kv: available}, options, nil
 			}
 		}

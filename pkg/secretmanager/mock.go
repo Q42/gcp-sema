@@ -1,7 +1,6 @@
 package secretmanager
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -52,7 +51,7 @@ func (c *mockKVClient) Get(name string) (KVValue, error) {
 	if ok {
 		return KVValue(val), nil
 	}
-	return nil, errors.New("404")
+	return nil, fmt.Errorf("404: %q", name)
 }
 
 func (c *mockKVClient) New(name string, labels map[string]string) (KVValue, error) {

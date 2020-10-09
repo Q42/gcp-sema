@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v3"
@@ -58,7 +59,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 	if len(args) > 0 && args[0] == "test" {
 		return nil
 	}
-	client := prepareSemaClient(opts.Positional.Project)
+
 	// Load defaults from config file
 	configRenderCommand := opts.parseConfigFile()
 	opts.mergeCommandOptions(renderCommand, configRenderCommand)
@@ -70,7 +71,18 @@ func (opts *RenderCommand) Execute(args []string) error {
 	}
 
 	// Inject SeMa client into handlers:
-	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0})
+	var client secretmanager.KVClient
+	var matcher = defaultMatcher
+	if opts.OfflineLookupFile != "" {
+		client, matcher = prepareOfflineClient(opts.OfflineLookupFile)
+	} else {
+		client = prepareSemaClient(opts.Positional.Project)
+	}
+	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{
+		Client:  client,
+		Prefix:  opts.Prefix,
+		Verbose: len(opts.Verbose) > 0,
+		Matcher: matcher})
 
 	// Give all handlers a go at downloading key-value lists/preparations
 	// Give all handlers a go to write annotation data
@@ -208,6 +220,8 @@ type RenderCommand struct {
 	Name       string `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
 	Dir        string `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
 	ConfigFile string `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
+	// Debugging/offline usage
+	OfflineLookupFile string ` env:"OFFLINE" long:"offline" description:"You might want to run sema as an unprivileged user, for testing/validation purposes for example. Use this to provide fake/real/offline secrets."`
 }
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
