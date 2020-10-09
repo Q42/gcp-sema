@@ -15,15 +15,15 @@ type schemaResolver struct {
 	Prefix  string
 	Verbose bool
 	// private
-	cachedAvailableKeys *[]string
+	cachedAvailable []secretmanager.KVValue
 }
 
-func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecretKeys []string) (result resolvedSecret, options []resolvedSecret, err error) {
+func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecrets []secretmanager.KVValue) (result resolvedSecret, options []resolvedSecret, err error) {
 	// enumerate all places we want to look for this secret
 	suggestedKeys := convictToSemaKey(r.Prefix, conf.Path)
 
 	for _, suggestedKey := range suggestedKeys {
-		options = append(options, resolvedSecretSema{key: suggestedKey, client: r.Client})
+		options = append(options, resolvedSecretSema{key: suggestedKey, client: r.Client, kv: nil})
 	}
 	runtimeOpts := makeRuntimeResolve(conf)
 	options = append(options, runtimeOpts...)
@@ -31,10 +31,10 @@ func (r schemaResolver) resolveConf(conf convictConfiguration, availableSecretKe
 	// Here the keynames in Secret Manager are checked against the keys that are required by config-schema.json
 	for _, suggestedKey := range suggestedKeys {
 		// enumerate all secrets that we have set in SecretManager
-		for _, availableKey := range availableSecretKeys {
+		for _, available := range availableSecrets {
 			// if it matches, return it
-			if trimPathPrefix(availableKey) == suggestedKey {
-				return resolvedSecretSema{key: suggestedKey, client: r.Client}, options, nil
+			if available.GetShortName() == suggestedKey {
+				return resolvedSecretSema{key: suggestedKey, client: r.Client, kv: available}, options, nil
 			}
 		}
 	}
@@ -88,6 +88,7 @@ func (r resolvedSecretRuntime) GetSecretValue() (interface{}, error) {
 type resolvedSecretSema struct {
 	key    string
 	client secretmanager.KVClient
+	kv     secretmanager.KVValue
 }
 
 func (r resolvedSecretSema) String() string {
@@ -95,9 +96,13 @@ func (r resolvedSecretSema) String() string {
 }
 
 func (r resolvedSecretSema) GetSecretValue() (interface{}, error) {
-	secret, err := r.client.Get(r.key)
-	if err != nil {
-		return nil, err
+	var err error
+	secret := r.kv
+	if secret == nil {
+		secret, err = r.client.Get(r.key)
+		if err != nil {
+			return nil, err
+		}
 	}
 	val, err := secret.GetValue()
 	if err != nil {
@@ -128,19 +133,17 @@ func (r schemaResolver) Resolve(schema convictConfigSchema) map[string]resolvedS
 	}
 
 	// Get/cache available secrets: reused by multiple invocations
-	if r.cachedAvailableKeys == nil {
-		availableSecrets, err := r.Client.ListKeys()
-		availableSecretKeys := secretmanager.SecretShortNames(availableSecrets)
+	if r.cachedAvailable == nil {
+		var err error
+		r.cachedAvailable, err = r.Client.ListKeys()
 		panicIfErr(err)
-		mapStrings(availableSecretKeys, trimPathPrefix) // otherwise they wont match during 'resolveConf' TODO: test need for/remove this statement!
-		r.cachedAvailableKeys = &availableSecretKeys
 	}
 
 	// Resolve all configuration options
 	allErrors := make([]error, 0)
 	allResolved := make(map[string]resolvedSecret, 0)
 	for _, conf := range schema.flatConfigurations {
-		resolved, options, err := r.resolveConf(conf, *r.cachedAvailableKeys)
+		resolved, options, err := r.resolveConf(conf, r.cachedAvailable)
 		if err != nil {
 			allErrors = append(allErrors, err)
 		} else {
