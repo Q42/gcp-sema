@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
@@ -73,21 +72,41 @@ func (opts *RenderCommand) Execute(args []string) error {
 	// Inject SeMa client into handlers:
 	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0})
 
-	// Give all handlers a go to write to the secret data
-	data := make(map[string][]byte, 0)
+	// Give all handlers a go at downloading key-value lists/preparations
 	for _, h := range opts.Handlers {
-		h.Populate(data)
+		h.Prepare()
+	}
+
+	// Give all handlers a go to write annotation data
+	annotations := make(map[string]string, 0)
+	for _, h := range opts.Handlers {
+		h.Annotate(annotations)
 	}
 
 	// Preamble, depending on the format
 	if opts.Format == "yaml" {
-		os.Stdout.WriteString(fmt.Sprintf(`kind: Secret
-apiVersion: v1
-metadata:
-  name: %s
-type: Opaque
-data:
-`, strconv.Quote(opts.Name)))
+		yml, err := yaml.Marshal(secretYAML{
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Type:       "Opaque",
+			Metadata: secretYAMLMetadata{
+				Name:        opts.Name,
+				Annotations: annotations,
+				Labels: map[string]string{
+					"info/generated-by": "sema",
+				},
+			},
+		})
+		panicIfErr(err)
+		os.Stdout.WriteString(string(yml))
+		// Write 'data' separately to unify writing in the different formats
+		os.Stdout.WriteString("data:\n")
+	}
+
+	// Give all handlers a go to write to the secret data
+	data := make(map[string][]byte, 0)
+	for _, h := range opts.Handlers {
+		h.Populate(data)
 	}
 
 	// Print all values in the correct format
@@ -261,4 +280,17 @@ func valueOrEmpty(str *string) string {
 		return ""
 	}
 	return *str
+}
+
+type secretYAML struct {
+	Kind       string             `yaml:"kind"`
+	APIVersion string             `yaml:"apiVersion"`
+	Metadata   secretYAMLMetadata `yaml:"metadata"`
+	Type       string             `yaml:"type"`
+}
+
+type secretYAMLMetadata struct {
+	Name        string            `yaml:"name"`
+	Annotations map[string]string `yaml:"annotations"`
+	Labels      map[string]string `yaml:"labels"`
 }

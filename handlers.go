@@ -15,7 +15,9 @@ import (
 // SecretHandler is the shared interface common between all handlers:
 // they can all populate values in a blob of secret data.
 type SecretHandler interface {
+	Prepare()
 	Populate(bucket map[string][]byte)
+	Annotate(annotations map[string]string)
 }
 
 // concreteSecretHandler is a way to implement the Unmarshaller (UnmarshalFlag) interface from go-flags on the interface type SecretHandler.
@@ -50,7 +52,7 @@ func MakeSecretHandler(handler, name, value string) (SecretHandler, error) {
 	case "literal":
 		return &literalHandler{key: name, value: value}, nil
 	case "file":
-		return &fileHandler{key: name, file: value}, nil
+		return &fileHandler{key: name, file: value, data: nil}, nil
 	case "sema-schema-to-file":
 		return &semaHandlerSingleKey{key: name, configSchemaFile: value}, nil
 	case "sema-schema-to-literals":
@@ -90,33 +92,48 @@ type literalHandler struct {
 	value string
 }
 
+func (*literalHandler) Prepare() {}
 func (h *literalHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = []byte(h.value)
+}
+func (h *literalHandler) Annotate(annotations map[string]string) {
+	annotations[fmt.Sprintf("sema/source/%s", h.key)] = "type=literal"
 }
 
 type fileHandler struct {
 	key  string
 	file string
+	data []byte
 }
 
-func (h *fileHandler) Populate(bucket map[string][]byte) {
-	data, err := ioutil.ReadFile(h.file)
+func (h *fileHandler) Prepare() {
+	var err error
+	h.data, err = ioutil.ReadFile(h.file)
 	panicIfErr(err)
-	bucket[h.key] = data
+}
+func (h *fileHandler) Populate(bucket map[string][]byte) {
+	bucket[h.key] = h.data
+}
+func (h *fileHandler) Annotate(annotations map[string]string) {
+	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=file,file=%s", h.file)
 }
 
 type semaHandlerSingleKey struct {
 	key              string
 	configSchemaFile string
 	resolver         schemaResolver
+	// private
+	cacheSchema   convictConfigSchema
+	cacheResolved map[string]resolvedSecret
 }
 
+func (h *semaHandlerSingleKey) Prepare() {
+	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
+	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
+}
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
-	schema := parseSchemaFile(h.configSchemaFile)
-	allResolved := h.resolver.Resolve(schema)
-
 	// Shove it into a nested JSON structure
-	jsonMap, err := hydrateSecretTree(schema.tree, allResolved)
+	jsonMap, err := hydrateSecretTree(h.cacheSchema.tree, h.cacheResolved)
 	if err != nil {
 		panic(err)
 	}
@@ -134,21 +151,32 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	}
 	bucket[h.key] = jsonData
 }
+func (h *semaHandlerSingleKey) Annotate(annotations map[string]string) {
+	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=sema-schema-to-file,schema=%s", h.configSchemaFile)
+	for secretName, resolved := range h.cacheResolved {
+		annotations[fmt.Sprintf("sema/source/%s/%s", h.key, secretName)] = resolved.Annotation()
+	}
+}
 
 type semaHandlerEnvironmentVariables struct {
 	configSchemaFile string
 	resolver         schemaResolver
+	// private
+	cacheSchema   convictConfigSchema
+	cacheResolved map[string]resolvedSecret
+}
+
+func (h *semaHandlerEnvironmentVariables) Prepare() {
+	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
+	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
 }
 
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
-	schema := parseSchemaFile(h.configSchemaFile)
-	allResolved := h.resolver.Resolve(schema)
-
 	var allErrors error
 	// Shove secrets in all possible environment variables
-	for _, conf := range schema.flatConfigurations {
+	for _, conf := range h.cacheSchema.flatConfigurations {
 		key := conf.Key()
-		if r, isSet := allResolved[key]; isSet && conf.Env != "" {
+		if r, isSet := h.cacheResolved[key]; isSet && conf.Env != "" {
 			val, err := r.GetSecretValue()
 			if stringVal, ok := val.(*string); ok {
 				bucket[conf.Env] = []byte(*stringVal)
@@ -161,18 +189,36 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	}
 	panicIfErr(allErrors)
 }
+func (h *semaHandlerEnvironmentVariables) Annotate(annotations map[string]string) {
+	annotations["sema/source"] = fmt.Sprintf("type=sema-schema-to-literals,schema=%s", h.configSchemaFile)
+	for secretName, resolved := range h.cacheResolved {
+		annotations[fmt.Sprintf("sema/source/%s", secretName)] = resolved.Annotation()
+	}
+}
 
 type semaHandlerLiteral struct {
 	key      string
 	secret   string
 	resolver schemaResolver
+	//private
+	cacheResolved resolvedSecretSema
 }
 
-func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
+func (h *semaHandlerLiteral) Prepare() {
 	secret, err := h.resolver.Client.Get(h.secret)
 	panicIfErr(err)
-	data, err := secret.GetValue()
-	bucket[h.key] = data
+	h.cacheResolved = resolvedSecretSema{key: h.secret, client: h.resolver.Client, kv: secret}
+}
+func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
+	val, err := h.cacheResolved.GetSecretValue()
+	panicIfErr(err)
+	if stringVal, ok := val.(*string); ok {
+		bucket[h.key] = []byte(*stringVal)
+	}
+}
+func (h *semaHandlerLiteral) Annotate(annotations map[string]string) {
+	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=sema-literal,secret=%s", h.secret)
+	annotations[fmt.Sprintf("sema/source/%s/%s", h.key, h.secret)] = h.cacheResolved.Annotation()
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"

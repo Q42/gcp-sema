@@ -58,6 +58,7 @@ func resolvedSecretEqual(a, b resolvedSecret) bool {
 
 type resolvedSecret interface {
 	String() string
+	Annotation() string
 	GetSecretValue() (interface{}, error)
 }
 type resolvedSecretRuntime struct{ conf convictConfiguration }
@@ -67,6 +68,10 @@ func makeRuntimeResolve(conf convictConfiguration) []resolvedSecret {
 		return []resolvedSecret{resolvedSecretRuntime{conf: conf}}
 	}
 	return nil
+}
+
+func (r resolvedSecretRuntime) Annotation() string {
+	return r.String()
 }
 
 func (r resolvedSecretRuntime) String() string {
@@ -89,6 +94,13 @@ type resolvedSecretSema struct {
 	key    string
 	client secretmanager.KVClient
 	kv     secretmanager.KVValue
+}
+
+func (r resolvedSecretSema) Annotation() string {
+	if r.kv != nil {
+		return fmt.Sprintf("secretmanager(fullname: %s)", r.kv.GetFullName())
+	}
+	return r.String()
 }
 
 func (r resolvedSecretSema) String() string {
