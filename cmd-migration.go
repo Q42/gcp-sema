@@ -20,7 +20,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/flynn/json5"
 	"github.com/go-errors/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func init() {

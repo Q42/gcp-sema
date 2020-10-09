@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
