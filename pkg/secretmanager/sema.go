@@ -143,6 +143,9 @@ func (s semaSecretWrapper) SetValue(value []byte) (string, error) {
 		Payload: &secretmanagerpb.SecretPayload{Data: value},
 	}
 	resp, err := s.client.client.AddSecretVersion(s.client.ctx, req)
+	if err != nil {
+		return "", err
+	}
 	_ = resp.Name // TODO something with this name (contains new version)
 	return resp.Name, err
 }
