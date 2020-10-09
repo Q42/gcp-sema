@@ -85,7 +85,7 @@ func (s semaWrapper) New(key string, labels map[string]string) (KVValue, error) 
 	if err != nil {
 		return nil, err
 	}
-	return KVValue(semaSecretWrapper{client: &s, path: key, labels: labels}), nil
+	return KVValue(semaSecretWrapper{client: &s, path: resp.Name, labels: labels}), nil
 }
 
 func (s semaSecretWrapper) GetFullName() string  { return s.path }
