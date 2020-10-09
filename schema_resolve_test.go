@@ -24,8 +24,8 @@ func TestSchemaResolving(t *testing.T) {
 	config, err := parseSchema([]byte(exampleSchema2))
 	assert.Equal(t, nil, err)
 
-	secretManagerNonprefixed := secretmanager.NewMockClient("my-project", "projects/foobar/secrets/redis_shards", "1,2,3,4,5")
-	secretManagerPrefixed := secretmanager.NewMockClient("my-project", "projects/foobar/secrets/myapp4_redis_shards", "a,b,c,d,e")
+	secretManagerNonprefixed := secretmanager.NewMockClient("my-project", "redis_shards", "1,2,3,4,5")
+	secretManagerPrefixed := secretmanager.NewMockClient("my-project", "myapp4_redis_shards", "a,b,c,d,e")
 
 	resolved := schemaResolver{Client: secretmanager.NewMockClient("my-project")}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])

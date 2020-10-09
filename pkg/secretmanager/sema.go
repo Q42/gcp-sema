@@ -33,7 +33,7 @@ type semaWrapper struct {
 }
 type semaSecretWrapper struct {
 	client *semaWrapper
-	key    string
+	path   string // "format: projects/%s/secrets/%s"
 	labels map[string]string
 }
 
@@ -56,7 +56,7 @@ func (s semaWrapper) ListKeys() ([]KVValue, error) {
 		if err != nil {
 			return nil, err
 		}
-		data = append(data, KVValue(semaSecretWrapper{client: &s, key: sec.Name, labels: sec.Labels}))
+		data = append(data, KVValue(semaSecretWrapper{client: &s, path: sec.Name, labels: sec.Labels}))
 	}
 
 	return data, nil
@@ -69,7 +69,7 @@ func (s semaWrapper) Get(key string) (KVValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	return semaSecretWrapper{client: &s, key: key, labels: resp.Labels}, nil
+	return semaSecretWrapper{client: &s, path: resp.Name, labels: resp.Labels}, nil
 }
 
 func (s semaWrapper) New(key string, labels map[string]string) (KVValue, error) {
@@ -85,21 +85,19 @@ func (s semaWrapper) New(key string, labels map[string]string) (KVValue, error) 
 	if err != nil {
 		return nil, err
 	}
-	return KVValue(semaSecretWrapper{client: &s, key: key, labels: labels}), nil
+	return KVValue(semaSecretWrapper{client: &s, path: key, labels: labels}), nil
 }
 
-func (s semaSecretWrapper) GetFullName() string {
-	return strings.Join([]string{"projects", s.client.project, "secrets", s.key}, "/")
-}
-func (s semaSecretWrapper) GetShortName() string { return s.key }
+func (s semaSecretWrapper) GetFullName() string  { return s.path }
+func (s semaSecretWrapper) GetShortName() string { return s.path[strings.LastIndex(s.path, "/")+1:] }
 
 func (s semaSecretWrapper) GetLink() string {
-	return fmt.Sprintf("https://console.cloud.google.com/security/secret-manager/secret/%s?project=%s", s.key, s.client.project)
+	return fmt.Sprintf("https://console.cloud.google.com/security/secret-manager/secret/%s?project=%s", s.GetShortName(), s.client.project)
 }
 
 func (s semaSecretWrapper) getLastVersion() (string, error) {
 	versions := make([]*secretmanagerpb.SecretVersion, 0)
-	it := s.client.client.ListSecretVersions(s.client.ctx, &secretmanagerpb.ListSecretVersionsRequest{Parent: fmt.Sprintf("projects/%s/secrets/%s", s.client.project, s.key)})
+	it := s.client.client.ListSecretVersions(s.client.ctx, &secretmanagerpb.ListSecretVersionsRequest{Parent: s.path})
 	for {
 		resp, err := it.Next()
 		if err == iterator.Done {
@@ -141,7 +139,7 @@ func (s semaSecretWrapper) SetValue(value []byte) (string, error) {
 	// writeSecretVersion updates the value to a new version
 	// projectNameVersion is the resource name in the format `projects/*/secrets/*`.
 	req := &secretmanagerpb.AddSecretVersionRequest{
-		Parent:  fmt.Sprintf("projects/%s/secrets/%s", s.client.project, s.key),
+		Parent:  s.path,
 		Payload: &secretmanagerpb.SecretPayload{Data: value},
 	}
 	resp, err := s.client.client.AddSecretVersion(s.client.ctx, req)
@@ -151,7 +149,7 @@ func (s semaSecretWrapper) SetValue(value []byte) (string, error) {
 
 func (s semaSecretWrapper) SetLabels(value map[string]string) error {
 	secret, err := s.client.client.GetSecret(s.client.ctx, &secretmanagerpb.GetSecretRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s", s.client.project, s.key),
+		Name: s.path,
 	})
 	if err != nil {
 		return err
