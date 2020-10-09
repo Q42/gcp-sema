@@ -15,7 +15,7 @@ import (
 // SecretHandler is the shared interface common between all handlers:
 // they can all populate values in a blob of secret data.
 type SecretHandler interface {
-	Prepare()
+	Prepare(bucket map[string]bool)
 	Populate(bucket map[string][]byte)
 	Annotate(annotations map[string]string)
 }
@@ -92,7 +92,9 @@ type literalHandler struct {
 	value string
 }
 
-func (*literalHandler) Prepare() {}
+func (h *literalHandler) Prepare(bucket map[string]bool) {
+	bucket[h.key] = true
+}
 func (h *literalHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = []byte(h.value)
 }
@@ -106,10 +108,11 @@ type fileHandler struct {
 	data []byte
 }
 
-func (h *fileHandler) Prepare() {
+func (h *fileHandler) Prepare(bucket map[string]bool) {
 	var err error
 	h.data, err = ioutil.ReadFile(h.file)
 	panicIfErr(err)
+	bucket[h.key] = true
 }
 func (h *fileHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = h.data
@@ -127,9 +130,10 @@ type semaHandlerSingleKey struct {
 	cacheResolved map[string]resolvedSecret
 }
 
-func (h *semaHandlerSingleKey) Prepare() {
+func (h *semaHandlerSingleKey) Prepare(bucket map[string]bool) {
 	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
 	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
+	bucket[h.key] = true
 }
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	// Shove it into a nested JSON structure
@@ -166,9 +170,15 @@ type semaHandlerEnvironmentVariables struct {
 	cacheResolved map[string]resolvedSecret
 }
 
-func (h *semaHandlerEnvironmentVariables) Prepare() {
+func (h *semaHandlerEnvironmentVariables) Prepare(bucket map[string]bool) {
 	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
 	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
+	for _, conf := range h.cacheSchema.flatConfigurations {
+		key := conf.Key()
+		if _, isSet := h.cacheResolved[key]; isSet && conf.Env != "" {
+			bucket[conf.Env] = true
+		}
+	}
 }
 
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
@@ -204,10 +214,11 @@ type semaHandlerLiteral struct {
 	cacheResolved resolvedSecretSema
 }
 
-func (h *semaHandlerLiteral) Prepare() {
+func (h *semaHandlerLiteral) Prepare(bucket map[string]bool) {
 	secret, err := h.resolver.Client.Get(h.secret)
 	panicIfErr(err)
 	h.cacheResolved = resolvedSecretSema{key: h.secret, client: h.resolver.Client, kv: secret}
+	bucket[h.key] = true
 }
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 	val, err := h.cacheResolved.GetSecretValue()

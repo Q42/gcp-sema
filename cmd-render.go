@@ -73,14 +73,24 @@ func (opts *RenderCommand) Execute(args []string) error {
 	opts.Handlers = injectSemaClient(opts.Handlers, schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0})
 
 	// Give all handlers a go at downloading key-value lists/preparations
-	for _, h := range opts.Handlers {
-		h.Prepare()
-	}
-
 	// Give all handlers a go to write annotation data
+	fields := make(map[string]bool, 0)
 	annotations := make(map[string]string, 0)
 	for _, h := range opts.Handlers {
+		h.Prepare(fields)
 		h.Annotate(annotations)
+	}
+
+	if opts.Format == "files" {
+		for _, file := range sortedKeysB(fields) {
+			log.Printf("Preparing to write %q", file)
+		}
+		log.Println("Downloading from key-value sources (use --verbose to preview which)...")
+		if len(opts.Verbose) > 0 {
+			for _, v := range annotations {
+				log.Printf("Source %q", v)
+			}
+		}
 	}
 
 	// Preamble, depending on the format
@@ -168,7 +178,7 @@ func writeDevSecretFile(directory, key string, value []byte) {
 	}
 	_, err = os.Stat(filepath)
 	if err == nil {
-		fmt.Println(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]:", filepath))
+		fmt.Printf(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]: ", filepath))
 		confirmed := askForConfirmation()
 		if confirmed {
 			err = ioutil.WriteFile(filepath, value, 0755)
@@ -268,6 +278,14 @@ func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flag
 }
 
 func sortedKeys(mp map[string][]byte) (keys []string) {
+	for v := range mp {
+		keys = append(keys, v)
+	}
+	sort.Strings(keys)
+	return
+}
+
+func sortedKeysB(mp map[string]bool) (keys []string) {
 	for v := range mp {
 		keys = append(keys, v)
 	}
