@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -99,7 +100,7 @@ func (h *literalHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = []byte(h.value)
 }
 func (h *literalHandler) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source/%s", h.key)] = "type=literal"
+	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = "type=literal"
 }
 
 type fileHandler struct {
@@ -118,7 +119,7 @@ func (h *fileHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = h.data
 }
 func (h *fileHandler) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=file,file=%s", h.file)
+	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=file,file=%s", h.file)
 }
 
 type semaHandlerSingleKey struct {
@@ -156,9 +157,9 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	bucket[h.key] = jsonData
 }
 func (h *semaHandlerSingleKey) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=sema-schema-to-file,schema=%s", h.configSchemaFile)
+	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=sema-schema-to-file,schema=%s", h.configSchemaFile)
 	for secretName, resolved := range h.cacheResolved {
-		annotations[fmt.Sprintf("sema/source/%s/%s", h.key, secretName)] = resolved.Annotation()
+		annotations[fmt.Sprintf("sema/source.%s.%s", alfanum(h.key), alfanum(secretName))] = resolved.Annotation()
 	}
 }
 
@@ -202,7 +203,7 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 func (h *semaHandlerEnvironmentVariables) Annotate(annotations map[string]string) {
 	annotations["sema/source"] = fmt.Sprintf("type=sema-schema-to-literals,schema=%s", h.configSchemaFile)
 	for secretName, resolved := range h.cacheResolved {
-		annotations[fmt.Sprintf("sema/source/%s", secretName)] = resolved.Annotation()
+		annotations[fmt.Sprintf("sema/source.%s", alfanum(secretName))] = resolved.Annotation()
 	}
 }
 
@@ -228,8 +229,8 @@ func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 	}
 }
 func (h *semaHandlerLiteral) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source/%s", h.key)] = fmt.Sprintf("type=sema-literal,secret=%s", h.secret)
-	annotations[fmt.Sprintf("sema/source/%s/%s", h.key, h.secret)] = h.cacheResolved.Annotation()
+	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=sema-literal,secret=%s", h.secret)
+	annotations[fmt.Sprintf("sema/source.%s.%s", alfanum(h.key), alfanum(h.secret))] = h.cacheResolved.Annotation()
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"
@@ -243,4 +244,10 @@ func mapStrings(slice []string, fn func(string) string) []string {
 		slice[i] = fn(v)
 	}
 	return slice
+}
+
+var qnameExtCharFmtExcluded *regexp.Regexp = regexp.MustCompile("[^-a-zA-Z0-9_.]+")
+
+func alfanum(inp string) string {
+	return qnameExtCharFmtExcluded.ReplaceAllString(inp, "")
 }
