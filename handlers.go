@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -18,7 +17,7 @@ import (
 type SecretHandler interface {
 	Prepare(bucket map[string]bool)
 	Populate(bucket map[string][]byte)
-	Annotate(annotations map[string]string)
+	Annotate(func(key string, value string))
 }
 
 // concreteSecretHandler is a way to implement the Unmarshaller (UnmarshalFlag) interface from go-flags on the interface type SecretHandler.
@@ -99,8 +98,8 @@ func (h *literalHandler) Prepare(bucket map[string]bool) {
 func (h *literalHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = []byte(h.value)
 }
-func (h *literalHandler) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = "type=literal"
+func (h *literalHandler) Annotate(annotate func(key string, value string)) {
+	annotate(h.key, "type=literal")
 }
 
 type fileHandler struct {
@@ -118,8 +117,8 @@ func (h *fileHandler) Prepare(bucket map[string]bool) {
 func (h *fileHandler) Populate(bucket map[string][]byte) {
 	bucket[h.key] = h.data
 }
-func (h *fileHandler) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=file,file=%s", h.file)
+func (h *fileHandler) Annotate(annotate func(key string, value string)) {
+	annotate(h.key, fmt.Sprintf("type=file,file=%s", h.file))
 }
 
 type semaHandlerSingleKey struct {
@@ -156,10 +155,10 @@ func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	}
 	bucket[h.key] = jsonData
 }
-func (h *semaHandlerSingleKey) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=sema-schema-to-file,schema=%s", h.configSchemaFile)
+func (h *semaHandlerSingleKey) Annotate(annotate func(key string, value string)) {
+	annotate(h.key, fmt.Sprintf("type=sema-schema-to-file,schema=%s", h.configSchemaFile))
 	for secretName, resolved := range h.cacheResolved {
-		annotations[fmt.Sprintf("sema/source.%s.%s", alfanum(h.key), alfanum(secretName))] = resolved.Annotation()
+		annotate(fmt.Sprintf("%s.%s", h.key, secretName), resolved.Annotation())
 	}
 }
 
@@ -200,10 +199,10 @@ func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	}
 	panicIfErr(allErrors)
 }
-func (h *semaHandlerEnvironmentVariables) Annotate(annotations map[string]string) {
-	annotations["sema/source"] = fmt.Sprintf("type=sema-schema-to-literals,schema=%s", h.configSchemaFile)
+func (h *semaHandlerEnvironmentVariables) Annotate(annotate func(key string, value string)) {
+	annotate("", fmt.Sprintf("type=sema-schema-to-literals,schema=%s", h.configSchemaFile))
 	for secretName, resolved := range h.cacheResolved {
-		annotations[fmt.Sprintf("sema/source.%s", alfanum(secretName))] = resolved.Annotation()
+		annotate(secretName, resolved.Annotation())
 	}
 }
 
@@ -228,9 +227,9 @@ func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 		bucket[h.key] = []byte(*stringVal)
 	}
 }
-func (h *semaHandlerLiteral) Annotate(annotations map[string]string) {
-	annotations[fmt.Sprintf("sema/source.%s", alfanum(h.key))] = fmt.Sprintf("type=sema-literal,secret=%s", h.secret)
-	annotations[fmt.Sprintf("sema/source.%s.%s", alfanum(h.key), alfanum(h.secret))] = h.cacheResolved.Annotation()
+func (h *semaHandlerLiteral) Annotate(annotate func(key string, value string)) {
+	annotate(h.key, fmt.Sprintf("type=sema-literal,secret=%s", h.secret))
+	annotate(fmt.Sprintf("%s.%s", h.key, alfanum(h.secret)), h.cacheResolved.Annotation())
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"
@@ -244,10 +243,4 @@ func mapStrings(slice []string, fn func(string) string) []string {
 		slice[i] = fn(v)
 	}
 	return slice
-}
-
-var qnameExtCharFmtExcluded *regexp.Regexp = regexp.MustCompile("[^-a-zA-Z0-9_.]+")
-
-func alfanum(inp string) string {
-	return qnameExtCharFmtExcluded.ReplaceAllString(inp, "")
 }

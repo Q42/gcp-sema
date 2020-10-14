@@ -92,7 +92,12 @@ func (opts *RenderCommand) Execute(args []string) error {
 	annotations := make(map[string]string, 0)
 	for _, h := range opts.Handlers {
 		h.Prepare(fields)
-		h.Annotate(annotations)
+		h.Annotate(func(key, value string) {
+			key, value, ok := postProcessAnnotation(key, value)
+			if ok {
+				annotations[key] = value
+			}
+		})
 	}
 
 	if opts.Format == "files" {
