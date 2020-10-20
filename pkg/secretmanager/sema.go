@@ -81,7 +81,6 @@ func (s semaWrapper) New(key string, labels map[string]string) (KVValue, error) 
 				Replication: &secretmanagerpb.Replication_Automatic_{},
 			}},
 	})
-	_ = resp.Name // TODO use this resp.Name maybe
 	if err != nil {
 		return nil, err
 	}
