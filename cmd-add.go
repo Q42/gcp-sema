@@ -22,7 +22,7 @@ func init() {
 
 type addCommandPositional struct {
 	Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
-	Name    string `long:"name" default:"mysecretkey" description:"Name of secret key"`
+	Name    string `required:"yes" long:"name" description:"Name of secret key (example: mysecretkey)" positional-arg-name:"name"`
 }
 
 type addCommand struct {
