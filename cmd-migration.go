@@ -23,6 +23,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// DefaultFileSecretsConfig defines the default location to search for configuration
+var DefaultFileSecretsConfig = ".secrets-config.yml"
+
 func init() {
 	parser.AddCommand("migration", "Migrate to Secret Manager", "", &migrateCommand{})
 }
@@ -164,7 +167,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 					return errors.WrapPrefix(err, fmt.Sprintf("failed to parse %q", secret.Name), 0)
 				}
 			} else {
-				return fmt.Errorf("Configuration .secrets-config.yml contains %q but in Kubernetes this is unavailable", secret.Name)
+				return fmt.Errorf("Configuration contains %q but in Kubernetes this is unavailable", secret.Name)
 			}
 			// How it is called in Secret Manager. Note this can be an ugly name, but that is fine. This is migration only!
 			semaName := strings.Map(allowedCharacters, fmt.Sprintf("%s_%s", opts.Prefix, secret.Name))
@@ -433,7 +436,7 @@ type legacySecretConfig struct {
 }
 
 func getLegacySecretConfiguration() (config *legacySecretConfig, err error) {
-	fileData, err := ioutil.ReadFile(".secrets-config.yml")
+	fileData, err := ioutil.ReadFile(DefaultFileSecretsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -516,8 +519,8 @@ func (conf *RenderConfigYAML) editSuggestion() string {
 func (conf *RenderConfigYAML) actions() []ProposedAction {
 	generatorCmd := "generators:\n- command: \"sema render $PROJECT\""
 	return []ProposedAction{manualAction{
-		Action: fmt.Sprintf("Manually update .secrets-config.yml to include:\n%s", color.BlueString(conf.editSuggestion())),
-		Cmd:    fmt.Sprintf("echo 'update .secrets-config.yml to include: '; cat <<EOF\n%s\nEOF", conf.editSuggestion()),
+		Action: fmt.Sprintf("Manually update %s to include:\n%s", DefaultFileSecretsConfig, color.BlueString(conf.editSuggestion())),
+		Cmd:    fmt.Sprintf("echo 'update %s to include: '; cat <<EOF\n%s\nEOF", DefaultFileSecretsConfig, conf.editSuggestion()),
 	}, manualAction{
 		Action: fmt.Sprintf("Manually update deploy configuration to include:\n%s", color.BlueString(generatorCmd)),
 		Cmd:    fmt.Sprintf("echo 'update deploy configuration to include: '; cat <<EOF\n%s\nEOF", generatorCmd),

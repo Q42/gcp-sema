@@ -25,7 +25,7 @@ var (
 )
 
 var renderDescription = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.`
-var renderDescriptionLong = `Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
+var renderDescriptionLong = fmt.Sprintf(`Render combines the Secret Manager data and generates the output that can be applied to Kubernetes or Docker Compose.
 
 There are multiple ways to specify a secret source, the format is -s [handler],[key],[source/value].
 The following options are implemented:
@@ -45,8 +45,8 @@ The following options are implemented:
   # extract key value from SeMa into literals
   -s sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW
 
-Configuration can also be done through YAML in .secrets-config.yml in key 'secretGenerator'.
-`
+Configuration can also be done through YAML in file %q.
+`, DefaultFileSecretsConfig)
 
 func init() {
 	var err error
@@ -155,11 +155,11 @@ func (opts *RenderCommand) Execute(args []string) error {
 	return nil
 }
 
-// Allows storing flags in a config file (uses yaml prefix 'secretGenerator')
+// Allows storing flags in a config file
 func (opts *RenderCommand) parseConfigFile() RenderCommand {
 	var configRenderCommand RenderCommand
 	if opts.ConfigFile == "" {
-		opts.ConfigFile = ".secrets-config.yml"
+		opts.ConfigFile = DefaultFileSecretsConfig
 	}
 	if _, err := os.Stat(opts.ConfigFile); err == nil {
 		data, err := ioutil.ReadFile(opts.ConfigFile)
