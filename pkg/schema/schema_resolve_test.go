@@ -1,4 +1,4 @@
-package main
+package schema
 
 import (
 	"testing"
@@ -43,17 +43,17 @@ func TestSchemaResolving(t *testing.T) {
 	// Non prefixed
 	keys, _ := secretManagerNonprefixed.ListKeys()
 	result, _, err := schemaResolver{Prefix: ""}.resolveConf(shardConfig, keys)
-	assert.IsType(t, resolvedSecretSema{}, result)
-	assert.Equal(t, "redis_shards", result.(resolvedSecretSema).key)
-	assert.Equal(t, keys[0], result.(resolvedSecretSema).kv)
+	assert.IsType(t, ResolvedSecretSema{}, result)
+	assert.Equal(t, "redis_shards", result.(ResolvedSecretSema).key)
+	assert.Equal(t, keys[0], result.(ResolvedSecretSema).kv)
 	assert.Equal(t, nil, err)
 
 	// Prefixed
 	keys, _ = secretManagerPrefixed.ListKeys()
 	result, _, err = schemaResolver{Prefix: "myapp4"}.resolveConf(shardConfig, keys)
-	assert.IsType(t, resolvedSecretSema{}, result)
-	assert.Equal(t, "myapp4_redis_shards", result.(resolvedSecretSema).key)
-	assert.Equal(t, keys[0], result.(resolvedSecretSema).kv)
+	assert.IsType(t, ResolvedSecretSema{}, result)
+	assert.Equal(t, "myapp4_redis_shards", result.(ResolvedSecretSema).key)
+	assert.Equal(t, keys[0], result.(ResolvedSecretSema).kv)
 	assert.Equal(t, nil, err)
 
 	//////////////////////
@@ -65,17 +65,17 @@ func TestSchemaResolving(t *testing.T) {
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["encryption.ssh_key"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["encryption.opt_int"])
-	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
+	assert.IsType(t, ResolvedSecretSema{}, resolved["redis.shards"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: logConfig}, resolved["log.level"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: encryptionConfig}, resolved["encryption.ssh_key"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: optIntConfig}, resolved["encryption.opt_int"])
-	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
-	assert.EqualValues(t, "redis_shards", resolved["redis.shards"].(resolvedSecretSema).key)
-	assert.EqualValues(t, secretManagerNonprefixed, resolved["redis.shards"].(resolvedSecretSema).client)
+	assert.IsType(t, ResolvedSecretSema{}, resolved["redis.shards"])
+	assert.EqualValues(t, "redis_shards", resolved["redis.shards"].(ResolvedSecretSema).key)
+	assert.EqualValues(t, secretManagerNonprefixed, resolved["redis.shards"].(ResolvedSecretSema).client)
 
 	// Prefixed
 	resolved = schemaResolver{Client: secretManagerPrefixed, Prefix: "myapp4"}.Resolve(config)
-	assert.IsType(t, resolvedSecretSema{}, resolved["redis.shards"])
-	assert.EqualValues(t, "myapp4_redis_shards", resolved["redis.shards"].(resolvedSecretSema).key)
-	assert.EqualValues(t, secretManagerPrefixed, resolved["redis.shards"].(resolvedSecretSema).client)
+	assert.IsType(t, ResolvedSecretSema{}, resolved["redis.shards"])
+	assert.EqualValues(t, "myapp4_redis_shards", resolved["redis.shards"].(ResolvedSecretSema).key)
+	assert.EqualValues(t, secretManagerPrefixed, resolved["redis.shards"].(ResolvedSecretSema).client)
 }

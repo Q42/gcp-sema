@@ -1,4 +1,4 @@
-package main
+package schema
 
 import (
 	"fmt"
@@ -10,10 +10,17 @@ import (
 	"github.com/go-errors/errors"
 )
 
-func parseSchemaFile(schemaFile string) convictConfigSchema {
+func panicIfErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// ParseSchemaFile -
+func ParseSchemaFile(schemaFile string) ConvictConfigSchema {
 	data, err := ioutil.ReadFile(schemaFile)
 	panicIfErr(err)
-	var schema convictConfigSchema
+	var schema ConvictConfigSchema
 	schema, err = parseSchema(data)
 	if err != nil {
 		panic(errors.WrapPrefix(err, fmt.Sprintf("cannot parse schema '%s'", schemaFile), 0))
@@ -21,23 +28,24 @@ func parseSchemaFile(schemaFile string) convictConfigSchema {
 	return schema
 }
 
-func parseSchema(data []byte) (result convictConfigSchema, err error) {
-	dest := &convictJSONTree{}
+func parseSchema(data []byte) (result ConvictConfigSchema, err error) {
+	dest := &ConvictJSONTree{}
 	err = json5.Unmarshal(data, &dest)
-	result = convictConfigSchema{
+	result = ConvictConfigSchema{
 		// rawJSONSchema:      data,
-		tree:               dest,
-		flatConfigurations: convictRecursiveResolve(dest),
+		Tree:               dest,
+		FlatConfigurations: convictRecursiveResolve(dest),
 	}
 	return
 }
 
-type convictJSONTree struct {
-	Leaf     *convictConfiguration
-	Children map[string]*convictJSONTree
+// ConvictJSONTree -
+type ConvictJSONTree struct {
+	Leaf     *ConvictConfiguration
+	Children map[string]*ConvictJSONTree
 }
 
-func (tree *convictJSONTree) Nest(key string) {
+func (tree *ConvictJSONTree) Nest(key string) {
 	if tree.Leaf != nil {
 		tree.Leaf.Path = append([]string{key}, tree.Leaf.Path...)
 	}
@@ -46,7 +54,7 @@ func (tree *convictJSONTree) Nest(key string) {
 	}
 }
 
-func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
+func (tree *ConvictJSONTree) UnmarshalJSON(data []byte) error {
 	convict := struct {
 		Default jsonValue `json:"default"`
 	}{}
@@ -68,7 +76,7 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		_, format := isConvictLeaf(obj)
-		tree.Leaf = &convictConfiguration{
+		tree.Leaf = &ConvictConfiguration{
 			Format:       format,
 			DefaultValue: convict.Default.Value,
 			Doc:          toString(obj["doc"]),
@@ -78,7 +86,7 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 	}
 
 	// Else, this is a nested tree, parse items as nested things
-	tree.Children = map[string]*convictJSONTree{}
+	tree.Children = map[string]*ConvictJSONTree{}
 	err = json5.Unmarshal(data, &tree.Children)
 	for key, c := range tree.Children {
 		if c != nil {
@@ -90,13 +98,15 @@ func (tree *convictJSONTree) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-type convictConfigSchema struct {
+// ConvictConfigSchema -
+type ConvictConfigSchema struct {
 	rawJSONSchema      []byte
-	tree               *convictJSONTree
-	flatConfigurations []convictConfiguration
+	Tree               *ConvictJSONTree
+	FlatConfigurations []ConvictConfiguration
 }
 
-type convictConfiguration struct {
+// ConvictConfiguration -
+type ConvictConfiguration struct {
 	Path         []string
 	Format       convictFormat
 	DefaultValue interface{} `json:"default"`
@@ -105,8 +115,8 @@ type convictConfiguration struct {
 	Optional     bool
 }
 
-// Key is the standardized way of serializing a convictConfiguration.Path
-func (conf *convictConfiguration) Key() string {
+// Key is the standardized way of serializing a ConvictConfiguration.Path
+func (conf *ConvictConfiguration) Key() string {
 	return strings.Join(conf.Path, ".")
 }
 
@@ -160,12 +170,12 @@ func isConvictLeaf(data map[string]interface{}) (hasFormat bool, format convictF
 	return hasFormat, format
 }
 
-func convictRecursiveResolve(data *convictJSONTree) []convictConfiguration {
+func convictRecursiveResolve(data *ConvictJSONTree) []ConvictConfiguration {
 	if data == nil {
 		return nil
 	}
 
-	configs := []convictConfiguration{}
+	configs := []ConvictConfiguration{}
 	if data.Leaf != nil {
 		configs = append(configs, *data.Leaf)
 	}

@@ -34,13 +34,17 @@ sema render \
   --from-sema-schema-to-literals=config-schema.json \
   # extract key value from SeMa into literals
   --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW \
-
   my-project
 
 $ sema add [project] [secret_name] \
   # optionally add zero or more labels
   --label key:value --label foo:bar
 ```
+
+## config-schema.json
+You may wonder what `config-schema.json` is. We have a convention to store a
+JSON structure with all configuration options of our application in the
+repository. We use the [Mozilla convict](https://github.com/mozilla/node-convict) format.
 
 ## Running a migration:
 See [WORKFLOW.md](./WORKLOW.md)

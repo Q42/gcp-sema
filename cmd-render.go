@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/Q42/gcp-sema/pkg/schema"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
@@ -72,8 +73,8 @@ func (opts *RenderCommand) Execute(args []string) error {
 
 	// Inject SeMa client into handlers:
 	var client secretmanager.KVClient
-	var matcher = defaultMatcher
-	var resolver SchemaResolver
+	var matcher = schema.DefaultMatcher
+	var resolver schema.SchemaResolver
 	if opts.MockSema {
 		client, resolver = prepareMockClient()
 	} else {
@@ -82,7 +83,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 		} else {
 			client = prepareSemaClient(opts.Positional.Project)
 		}
-		resolver = schemaResolver{Client: client, Prefix: opts.Prefix, Verbose: len(opts.Verbose) > 0, Matcher: matcher}
+		resolver = schema.MakeSchemaResolver(client, opts.Prefix, len(opts.Verbose) > 0, matcher)
 	}
 	opts.Handlers = injectSemaClient(opts.Handlers, resolver)
 

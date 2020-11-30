@@ -1,4 +1,4 @@
-package main
+package schema
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ func TestSchemaParsing(t *testing.T) {
 	logLevel := convictFormatString{actualFormat: "String"}
 	arr := convictFormatArray{}
 
-	assert.Equal(t, []convictConfiguration{
+	assert.Equal(t, []ConvictConfiguration{
 		{Path: []string{"log", "format"}, Format: logFormat, DefaultValue: "json", Doc: "", Env: "LOG_FORMAT"},
 		{Path: []string{"log", "level"}, Format: logLevel, DefaultValue: "info", Doc: "", Env: "LOG_LEVEL"},
 		{Path: []string{"redis", "port"}, Format: arr, DefaultValue: []interface{}{float64(6379)}, Doc: "", Env: ""},

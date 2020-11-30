@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Q42/gcp-sema/pkg/schema"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 	"github.com/flynn/json5"
@@ -196,7 +197,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 		log.Println("Configuration parameters:")
 		// List all configuration options, including existing values in config-env.json
 		// and the suggested SecretManager keys and which of those are already set.
-		for idx, conf := range parseSchemaFile(schemaPath).flatConfigurations {
+		for idx, conf := range schema.ParseSchemaFile(schemaPath).FlatConfigurations {
 			// print: 1: LOGLEVEL (format: [none,debug,info,warn,error], env: LOGLEVEL)
 			infos := make([]string, 0)
 			if conf.Format != nil {
@@ -223,7 +224,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 				ok, err := isSafeCoercible(node, conf)
 				if ok {
 					usedConfigEnvValue = true
-					semaName := convictToSemaKey(opts.Prefix, conf.Path)[0]
+					semaName := schema.ConvictToSemaKey(opts.Prefix, conf.Path)[0]
 					data, _ := conf.Format.Flatten(node)
 					log.Println("\t- k8s", color.GreenString(configEnvName))
 					actions = append(actions, &addCommand{
@@ -238,7 +239,7 @@ func (opts *migrateCommand) Execute(args []string) error {
 				log.Println("\t- k8s", color.RedString(configEnvName))
 			}
 
-			for _, suggestion := range convictToSemaKey(opts.Prefix, conf.Path) {
+			for _, suggestion := range schema.ConvictToSemaKey(opts.Prefix, conf.Path) {
 				if isListElement(availableSecretKeys, suggestion) {
 					if !usedConfigEnvValue && !usedSemaKey {
 						usedSemaKey = true
@@ -319,7 +320,7 @@ func (opts *migrateCommand) getKubernetesSecret() *kubernetesSecret {
 	return &k8sSecret
 }
 
-func (s *kubernetesSecret) Lookup(conf convictConfiguration) (interface{}, error) {
+func (s *kubernetesSecret) Lookup(conf schema.ConvictConfiguration) (interface{}, error) {
 	if s.configEnvCache == nil {
 		s.configEnvCache = make(map[string]interface{})
 		// naive: this can be renamed inside apps!
@@ -372,19 +373,6 @@ func prompt(name string) string {
 	value, _ := reader.ReadString('\n')
 	value = strings.Trim(value, "\n\r")
 	return value
-}
-
-func convictToSemaKey(prefix string, path []string) (result []string) {
-	if prefix != "" {
-		result = append(result, strings.Join(append([]string{strings.ToLower(prefix)}, path...), "_"))
-	}
-	result = append(result, strings.Join(path, "_"))
-	for i, v := range result {
-		// Sema only allows keys to start with a lowercase character, so lets use only lowercase chars to be consistent!
-		// We are a little more flexible with reading from Secret Manager, so we support old secret uploads that are not in this same case-format.
-		result[i] = strings.ToLower(v)
-	}
-	return
 }
 
 func isListElement(availables []string, suggestion string) bool {
@@ -484,7 +472,7 @@ func (a *addCommand) Func() func() error {
 }
 
 // Detects if a configuration value will survive being serialized to string
-func isSafeCoercible(node interface{}, conf convictConfiguration) (bool, error) {
+func isSafeCoercible(node interface{}, conf schema.ConvictConfiguration) (bool, error) {
 	value, err := conf.Format.Flatten(node)
 	if err != nil {
 		return false, err

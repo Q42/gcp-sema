@@ -9,7 +9,7 @@ import (
 
 func TestAnnotationsValid(t *testing.T) {
 	semaSingleKey := &semaHandlerSingleKey{key: "config-schema.json", configSchemaFile: "server/config-schema.json"}
-	semaSingleKey.cacheResolved = map[string]resolvedSecret{
+	semaSingleKey.cacheResolved = map[string]dynamic.ResolvedSecret{
 		"ENCRYPTION.BRIDGE.SALT": resolvedSecretRuntime{},
 		"ENCRYPTION_BRIDGE_SALT": resolvedSecretRuntime{},
 	}

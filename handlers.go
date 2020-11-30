@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/Q42/gcp-sema/pkg/dynamic"
+	"github.com/Q42/gcp-sema/pkg/schema"
+	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 )
 
@@ -18,6 +21,7 @@ type SecretHandler interface {
 	Prepare(bucket map[string]bool)
 	Populate(bucket map[string][]byte)
 	Annotate(func(key string, value string))
+	InjectClient(client secretmanager.KVClient)
 }
 
 // concreteSecretHandler is a way to implement the Unmarshaller (UnmarshalFlag) interface from go-flags on the interface type SecretHandler.
@@ -101,6 +105,9 @@ func (h *literalHandler) Populate(bucket map[string][]byte) {
 func (h *literalHandler) Annotate(annotate func(key string, value string)) {
 	annotate(h.key, "type=literal")
 }
+func (h *literalHandler) InjectClient(c secretmanager.KVClient) {
+	// noop
+}
 
 type fileHandler struct {
 	key  string
@@ -120,24 +127,27 @@ func (h *fileHandler) Populate(bucket map[string][]byte) {
 func (h *fileHandler) Annotate(annotate func(key string, value string)) {
 	annotate(h.key, fmt.Sprintf("type=file,file=%s", h.file))
 }
+func (h *fileHandler) InjectClient(c secretmanager.KVClient) {
+	// noop
+}
 
 type semaHandlerSingleKey struct {
 	key              string
 	configSchemaFile string
-	resolver         SchemaResolver
+	resolver         schema.SchemaResolver
 	// private
-	cacheSchema   convictConfigSchema
-	cacheResolved map[string]resolvedSecret
+	cacheSchema   schema.ConvictConfigSchema
+	cacheResolved map[string]dynamic.ResolvedSecret
 }
 
 func (h *semaHandlerSingleKey) Prepare(bucket map[string]bool) {
-	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
+	h.cacheSchema = schema.ParseSchemaFile(h.configSchemaFile)
 	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
 	bucket[h.key] = true
 }
 func (h *semaHandlerSingleKey) Populate(bucket map[string][]byte) {
 	// Shove it into a nested JSON structure
-	jsonMap, err := hydrateSecretTree(h.cacheSchema.tree, h.cacheResolved)
+	jsonMap, err := hydrateSecretTree(h.cacheSchema.Tree, h.cacheResolved)
 	if err != nil {
 		panic(err)
 	}
@@ -161,19 +171,22 @@ func (h *semaHandlerSingleKey) Annotate(annotate func(key string, value string))
 		annotate(fmt.Sprintf("%s.%s", h.key, secretName), resolved.Annotation())
 	}
 }
+func (h *semaHandlerSingleKey) InjectClient(c secretmanager.KVClient) {
+	// TODO
+}
 
 type semaHandlerEnvironmentVariables struct {
 	configSchemaFile string
-	resolver         SchemaResolver
+	resolver         schema.SchemaResolver
 	// private
-	cacheSchema   convictConfigSchema
-	cacheResolved map[string]resolvedSecret
+	cacheSchema   schema.ConvictConfigSchema
+	cacheResolved map[string]dynamic.ResolvedSecret
 }
 
 func (h *semaHandlerEnvironmentVariables) Prepare(bucket map[string]bool) {
-	h.cacheSchema = parseSchemaFile(h.configSchemaFile)
+	h.cacheSchema = schema.ParseSchemaFile(h.configSchemaFile)
 	h.cacheResolved = h.resolver.Resolve(h.cacheSchema)
-	for _, conf := range h.cacheSchema.flatConfigurations {
+	for _, conf := range h.cacheSchema.FlatConfigurations {
 		key := conf.Key()
 		if _, isSet := h.cacheResolved[key]; isSet && conf.Env != "" {
 			bucket[conf.Env] = true
@@ -184,7 +197,7 @@ func (h *semaHandlerEnvironmentVariables) Prepare(bucket map[string]bool) {
 func (h *semaHandlerEnvironmentVariables) Populate(bucket map[string][]byte) {
 	var allErrors error
 	// Shove secrets in all possible environment variables
-	for _, conf := range h.cacheSchema.flatConfigurations {
+	for _, conf := range h.cacheSchema.FlatConfigurations {
 		key := conf.Key()
 		if r, isSet := h.cacheResolved[key]; isSet && conf.Env != "" {
 			val, err := r.GetSecretValue()
@@ -206,18 +219,22 @@ func (h *semaHandlerEnvironmentVariables) Annotate(annotate func(key string, val
 	}
 }
 
+func (h *semaHandlerEnvironmentVariables) InjectClient(c secretmanager.KVClient) {
+	// TODO
+}
+
 type semaHandlerLiteral struct {
 	key      string
 	secret   string
-	resolver SchemaResolver
+	resolver schema.SchemaResolver
 	//private
-	cacheResolved resolvedSecretSema
+	cacheResolved schema.ResolvedSecretSema
 }
 
 func (h *semaHandlerLiteral) Prepare(bucket map[string]bool) {
 	secret, err := h.resolver.GetClient().Get(h.secret)
 	panicIfErr(err)
-	h.cacheResolved = resolvedSecretSema{key: h.secret, client: h.resolver.GetClient(), kv: secret}
+	h.cacheResolved = schema.ResolvedSecretSema{Key: h.secret, Client: h.resolver.GetClient(), KV: secret}
 	bucket[h.key] = true
 }
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
@@ -230,6 +247,9 @@ func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 func (h *semaHandlerLiteral) Annotate(annotate func(key string, value string)) {
 	annotate(h.key, fmt.Sprintf("type=sema-literal,secret=%s", h.secret))
 	annotate(fmt.Sprintf("%s.%s", h.key, alfanum(h.secret)), h.cacheResolved.Annotation())
+}
+func (h *semaHandlerLiteral) InjectClient(c secretmanager.KVClient) {
+	// TODO
 }
 
 // If the input is a path like "a/long/path/to/something" the output is "something"

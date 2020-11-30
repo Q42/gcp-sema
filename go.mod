@@ -4,6 +4,10 @@ go 1.14
 
 replace github.com/Q42/gcp-sema/pkg/secretmanager => ./pkg/secretmanager
 
+replace github.com/Q42/gcp-sema/pkg/dynamic => ./pkg/dynamic
+
+replace github.com/Q42/gcp-sema/pkg/schema => ./pkg/schema
+
 require (
 	cloud.google.com/go v0.58.0
 	github.com/fatih/color v1.9.0
