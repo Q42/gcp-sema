@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/Q42/gcp-sema/pkg/dynamic"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/validation"
 )

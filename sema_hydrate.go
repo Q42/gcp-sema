@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Q42/gcp-sema/pkg/dynamic"
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/schema"
 )
 
@@ -31,9 +32,9 @@ func hydrateSecretTree(tree *schema.ConvictJSONTree, resolved map[string]dynamic
 	return result, outerErr
 }
 
-func injectSemaClient(handlers []concreteSecretHandler, schemaResolver schema.SchemaResolver) (returned []concreteSecretHandler) {
+func injectSemaClient(handlers []handlers.ConcreteSecretHandler, schemaResolver schema.SchemaResolver) (returned []handlers.ConcreteSecretHandler) {
 	for _, h := range handlers {
-		returned = append(returned, h.injectSemaClient(schemaResolver))
+		returned = append(returned, h.InjectClient(schemaResolver))
 	}
 	return
 }

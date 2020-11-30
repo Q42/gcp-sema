@@ -44,16 +44,16 @@ func TestSchemaResolving(t *testing.T) {
 	keys, _ := secretManagerNonprefixed.ListKeys()
 	result, _, err := schemaResolver{Prefix: ""}.resolveConf(shardConfig, keys)
 	assert.IsType(t, ResolvedSecretSema{}, result)
-	assert.Equal(t, "redis_shards", result.(ResolvedSecretSema).key)
-	assert.Equal(t, keys[0], result.(ResolvedSecretSema).kv)
+	assert.Equal(t, "redis_shards", result.(ResolvedSecretSema).Key)
+	assert.Equal(t, keys[0], result.(ResolvedSecretSema).KV)
 	assert.Equal(t, nil, err)
 
 	// Prefixed
 	keys, _ = secretManagerPrefixed.ListKeys()
 	result, _, err = schemaResolver{Prefix: "myapp4"}.resolveConf(shardConfig, keys)
 	assert.IsType(t, ResolvedSecretSema{}, result)
-	assert.Equal(t, "myapp4_redis_shards", result.(ResolvedSecretSema).key)
-	assert.Equal(t, keys[0], result.(ResolvedSecretSema).kv)
+	assert.Equal(t, "myapp4_redis_shards", result.(ResolvedSecretSema).Key)
+	assert.Equal(t, keys[0], result.(ResolvedSecretSema).KV)
 	assert.Equal(t, nil, err)
 
 	//////////////////////
@@ -70,12 +70,12 @@ func TestSchemaResolving(t *testing.T) {
 	assert.EqualValues(t, resolvedSecretRuntime{conf: encryptionConfig}, resolved["encryption.ssh_key"])
 	assert.EqualValues(t, resolvedSecretRuntime{conf: optIntConfig}, resolved["encryption.opt_int"])
 	assert.IsType(t, ResolvedSecretSema{}, resolved["redis.shards"])
-	assert.EqualValues(t, "redis_shards", resolved["redis.shards"].(ResolvedSecretSema).key)
-	assert.EqualValues(t, secretManagerNonprefixed, resolved["redis.shards"].(ResolvedSecretSema).client)
+	assert.EqualValues(t, "redis_shards", resolved["redis.shards"].(ResolvedSecretSema).Key)
+	assert.EqualValues(t, secretManagerNonprefixed, resolved["redis.shards"].(ResolvedSecretSema).Client)
 
 	// Prefixed
 	resolved = schemaResolver{Client: secretManagerPrefixed, Prefix: "myapp4"}.Resolve(config)
 	assert.IsType(t, ResolvedSecretSema{}, resolved["redis.shards"])
-	assert.EqualValues(t, "myapp4_redis_shards", resolved["redis.shards"].(ResolvedSecretSema).key)
-	assert.EqualValues(t, secretManagerPrefixed, resolved["redis.shards"].(ResolvedSecretSema).client)
+	assert.EqualValues(t, "myapp4_redis_shards", resolved["redis.shards"].(ResolvedSecretSema).Key)
+	assert.EqualValues(t, secretManagerPrefixed, resolved["redis.shards"].(ResolvedSecretSema).Client)
 }

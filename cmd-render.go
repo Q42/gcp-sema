@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/schema"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/go-errors/errors"
@@ -220,11 +221,12 @@ type RenderCommand struct {
 	Positional struct {
 		Project string `required:"yes" description:"Google Cloud project" positional-arg-name:"project"`
 	} `positional-args:"yes"`
-	Verbose  []bool                  `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Format   string                  `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
-	Prefix   string                  `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
-	Handlers []concreteSecretHandler `short:"s" long:"secrets" description:"The Secret source, this can be specified multiple times"`
-	// Handlers   []concreteSecretHandler `no-flag:"y"`
+	Verbose []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+	Format  string `short:"f" long:"format" default:"yaml" description:"How to output: 'yaml' is a fully specified Kubernetes secret, 'env' will generate a *.env file format that can be used for Docker (Compose). 'files' will generate files per secret in the secrets folder"`
+	Prefix  string `long:"prefix" description:"A SecretManager prefix that will override non-prefixed keys"`
+
+	Handlers []handlers.ConcreteSecretHandler `short:"s" long:"secrets" description:"The Secret source, this can be specified multiple times"`
+
 	Name       string `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
 	Dir        string `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
 	ConfigFile string `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
@@ -265,12 +267,12 @@ func parseConfigFileData(data []byte) RenderCommand {
 	opts.Name = valueOrEmpty(parsed.Name)
 	opts.Prefix = valueOrEmpty(parsed.Prefix)
 	opts.Dir = valueOrEmpty(parsed.Dir)
-	opts.Handlers = []concreteSecretHandler{}
+	opts.Handlers = []handlers.ConcreteSecretHandler{}
 	for _, val := range parsed.Secrets {
 		if _, ok := val["type"]; ok {
-			handler, err := ParseSecretHandler(val)
+			handler, err := handlers.ParseSecretHandler(val)
 			if err == nil {
-				opts.Handlers = append(opts.Handlers, concreteSecretHandler{SecretHandler: handler})
+				opts.Handlers = append(opts.Handlers, handlers.ConcreteSecretHandler{SecretHandler: handler})
 			} else {
 				panic(err)
 			}
@@ -293,7 +295,7 @@ func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flag
 				}
 			}()
 			handler, err := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
-			commandOptions.Handlers = append(commandOptions.Handlers, concreteSecretHandler{SecretHandler: handler})
+			commandOptions.Handlers = append(commandOptions.Handlers, handlers.ConcreteSecretHandler{SecretHandler: handler})
 			return args, err
 		}
 	}

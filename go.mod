@@ -8,6 +8,8 @@ replace github.com/Q42/gcp-sema/pkg/dynamic => ./pkg/dynamic
 
 replace github.com/Q42/gcp-sema/pkg/schema => ./pkg/schema
 
+replace github.com/Q42/gcp-sema/pkg/handlers => ./pkg/handlers
+
 require (
 	cloud.google.com/go v0.58.0
 	github.com/fatih/color v1.9.0
