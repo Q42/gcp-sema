@@ -12,6 +12,9 @@ import (
 var qnameExtCharFmtExcluded *regexp.Regexp = regexp.MustCompile("[^-a-zA-Z0-9_.]+")
 var qnameExtChar = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+// DefaultAnnotationPrefix can be used to overwrite the Kubernetes annotation prefix
+var DefaultAnnotationPrefix = "sema/source"
+
 func alfanum(inp string) string {
 	return qnameExtCharFmtExcluded.ReplaceAllString(inp, "")
 }
@@ -23,10 +26,10 @@ func alfanum(inp string) string {
  **/
 func postProcessAnnotation(key, value string) (string, string, bool) {
 	if key == "" {
-		return "sema/source", value, true
+		return DefaultAnnotationPrefix, value, true
 	}
 
-	key = fmt.Sprintf("sema/source.%s", alfanum(key))
+	key = fmt.Sprintf("%s.%s", DefaultAnnotationPrefix, alfanum(key))
 
 	// Handle too long strings
 	if len(key) > 63 {
