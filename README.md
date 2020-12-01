@@ -52,5 +52,5 @@ See [WORKFLOW.md](./WORKLOW.md)
 ## Developing & debugging
 Use this for a quick test:
 ```bash
-$ make build-local && ./bin/sema render --from-literal=test.txt=value
+$ make build-local && ./bin/sema render dummy --secrets literal=test.txt=value --secrets literal=foo.txt=bar
 ```
