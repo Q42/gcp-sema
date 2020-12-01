@@ -94,7 +94,7 @@ func (opts *addCommand) Execute(args []string) (err error) {
 // readStringSilently will ensure that if you type the password on the commandline,
 // the value is not copied to the output framebuffer, by using `terminal.ReadPassword`.
 func readStringSilently(prompt string) (secret string) {
-	if terminal.IsTerminal(syscall.Stdin) {
+	if terminal.IsTerminal(int(syscall.Stdin)) {
 		log.Printf(prompt)
 		bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
