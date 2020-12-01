@@ -125,7 +125,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 				Name:        opts.Name,
 				Annotations: annotations,
 				Labels: map[string]string{
-					"info/generated-by": "sema",
+					"info/generated-by": "github.com/q42/gcp-sema",
 				},
 			},
 		})
