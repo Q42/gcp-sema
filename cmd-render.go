@@ -75,7 +75,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 	var client secretmanager.KVClient
 	var err error
 	if opts.MockSema {
-		client = secretmanager.NewMockClient("mock", "*", "")
+		client = secretmanager.NewInMemoryClient("mock", "*", "")
 	} else {
 		if opts.OfflineLookupFile != "" {
 			client, err = secretmanager.NewOfflineClient(opts.OfflineLookupFile, opts.Positional.Project)

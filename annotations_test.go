@@ -18,7 +18,7 @@ func TestAnnotationsValid(t *testing.T) {
 		"sema-literal":            makeSecretWrapper("sema-literal", "foo_bla", "random;txt!"),
 	}
 
-	mockClient := secretmanager.NewMockClient("dummy")
+	mockClient := secretmanager.NewInMemoryClient("dummy")
 	for n, h := range mapping {
 		if n, isInjectable := h.(handlers.SecretHandlerWithSema); isInjectable {
 			n.InjectSemaClient(mockClient, handlers.SecretHandlerOptions{})

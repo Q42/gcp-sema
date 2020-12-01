@@ -24,10 +24,10 @@ func TestSchemaResolving(t *testing.T) {
 	config, err := parseSchema([]byte(exampleSchema2))
 	assert.Equal(t, nil, err)
 
-	secretManagerNonprefixed := secretmanager.NewMockClient("my-project", "redis_shards", "1,2,3,4,5")
-	secretManagerPrefixed := secretmanager.NewMockClient("my-project", "myapp4_redis_shards", "a,b,c,d,e")
+	secretManagerNonprefixed := secretmanager.NewInMemoryClient("my-project", "redis_shards", "1,2,3,4,5")
+	secretManagerPrefixed := secretmanager.NewInMemoryClient("my-project", "myapp4_redis_shards", "a,b,c,d,e")
 
-	resolved := schemaResolver{Client: secretmanager.NewMockClient("my-project")}.Resolve(config)
+	resolved := schemaResolver{Client: secretmanager.NewInMemoryClient("my-project")}.Resolve(config)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["log.level"])
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["redis.shards"])
 

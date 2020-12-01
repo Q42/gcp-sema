@@ -17,5 +17,5 @@ func prepareOfflineClient(file string) secretmanager.KVClient {
 	for k, v := range env {
 		flatList = append(flatList, k, v)
 	}
-	return secretmanager.NewMockClient(file, flatList...)
+	return secretmanager.NewInMemoryClient(file, flatList...)
 }

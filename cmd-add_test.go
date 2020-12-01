@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddForceOverwrite(t *testing.T) {
-	kv := secretmanager.NewMockClient("cl-test", "withlabels", "bar", "withoutlabels", "zulu")
+	kv := secretmanager.NewInMemoryClient("cl-test", "withlabels", "bar", "withoutlabels", "zulu")
 
 	// Update secret with labels
 	secret, _ := kv.Get("withlabels")
@@ -39,7 +39,7 @@ func TestAddForceOverwrite(t *testing.T) {
 }
 
 func TestAddOverwriteFail(t *testing.T) {
-	kv := secretmanager.NewMockClient("cl-test", "withlabels", "bar")
+	kv := secretmanager.NewInMemoryClient("cl-test", "withlabels", "bar")
 
 	// Update secret without specifying the same labels
 	secret, _ := kv.Get("withlabels")
@@ -60,7 +60,7 @@ func TestAddOverwriteFail(t *testing.T) {
 }
 
 func TestAddNotExisting(t *testing.T) {
-	kv := secretmanager.NewMockClient("cl-test", "notfoo", "bar")
+	kv := secretmanager.NewInMemoryClient("cl-test", "notfoo", "bar")
 	cmdOpts := addCommand{Positional: addCommandPositional{"cl-test", "foo"}, Data: "baz", Labels: map[string]string{"a": "b"}, client: kv}
 	err := cmdOpts.Execute([]string{})
 	assert.NoError(t, err)

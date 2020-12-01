@@ -17,7 +17,7 @@ func TestHydrateNil(t *testing.T) {
 }
 
 func TestHydrateFlatTree(t *testing.T) {
-	client := secretmanager.NewMockClient("my-project", "log_level", "warn")
+	client := secretmanager.NewInMemoryClient("my-project", "log_level", "warn")
 
 	schema, err := parseSchema([]byte(`{
     /* logging config */
@@ -37,7 +37,7 @@ func TestHydrateFlatTree(t *testing.T) {
 }
 
 func TestHydrateNestedTree(t *testing.T) {
-	client := secretmanager.NewMockClient("my-project", "logging_level", "warn")
+	client := secretmanager.NewInMemoryClient("my-project", "logging_level", "warn")
 
 	schema, err := parseSchema([]byte(`{
     /* logging config */

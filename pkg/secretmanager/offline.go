@@ -21,5 +21,5 @@ func NewOfflineClient(file, project string) (KVClient, error) {
 	for k, v := range env {
 		flatList = append(flatList, k, v)
 	}
-	return NewMockClient(project, flatList...), nil
+	return NewInMemoryClient(project, flatList...), nil
 }
