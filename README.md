@@ -23,17 +23,17 @@ sema render \
   # format:
   --format=yaml \
   # multiple ways to specify a secret source:
-  --from-[handler]=[key]=[source] \
+  --secrets [handler]=[key]=[source] \
   # literals just like kubectl create secret --from-literal=myfile.txt=foo-bar
-  --from-literal=myfile.txt=foo-bar \
+  --secrets literal=myfile.txt=foo-bar \
   # plain files just like kubectl create secret --from-file=myfile.txt=./myfile.txt
-  --from-file=myfile.txt=./myfile.txt \
+  --secrets file=myfile.txt=./myfile.txt \
   # extract according to schema into a single property 'config-env.json'
-  --from-sema-schema-to-file=config-env.json=config-schema.json \
+  --secrets sema-schema-to-file=config-env.json=config-schema.json \
   # extract according to schema into environment variable literals
-  --from-sema-schema-to-literals=config-schema.json \
+  --secrets sema-schema-to-literals=config-schema.json \
   # extract key value from SeMa into literals
-  --from-sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW \
+  --secrets sema-literal=MY_APP_SECRET=MY_APP_SECRET_NEW \
   my-project
 
 $ sema add [project] [secret_name] \

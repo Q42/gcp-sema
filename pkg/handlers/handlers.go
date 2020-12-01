@@ -143,7 +143,7 @@ type SecretHandlerOptions struct {
 }
 
 // InjectSemaClient -
-func InjectSemaClient(handlers []ConcreteSecretHandler, client secretmanager.KVClient, opts SecretHandlerOptions) (returned []ConcreteSecretHandler) {
+func InjectSemaClient(handlers []ConcreteSecretHandler, client secretmanager.KVClient, opts SecretHandlerOptions) []ConcreteSecretHandler {
 	for _, h := range handlers {
 		if h.SecretHandler == nil {
 			continue
@@ -152,20 +152,5 @@ func InjectSemaClient(handlers []ConcreteSecretHandler, client secretmanager.KVC
 			sh.InjectSemaClient(client, opts)
 		}
 	}
-	return
+	return handlers
 }
-
-// func (c handlers.ConcreteSecretHandler) injectSemaClient(schemaResolver SchemaResolver) handlers.ConcreteSecretHandler {
-// 	switch s := c.SecretHandler.(type) {
-// 	case *semaHandlerEnvironmentVariables:
-// 		s.resolver = schemaResolver
-// 		c.SecretHandler = s
-// 	case *semaHandlerLiteral:
-// 		s.resolver = schemaResolver
-// 		c.SecretHandler = s
-// 	case *semaHandlerSingleKey:
-// 		s.resolver = schemaResolver
-// 		c.SecretHandler = s
-// 	}
-// 	return c
-// }

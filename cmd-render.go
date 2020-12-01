@@ -12,7 +12,6 @@ import (
 
 	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
-	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
 	"gopkg.in/yaml.v3"
 )
@@ -282,26 +281,6 @@ func parseConfigFileData(data []byte) RenderCommand {
 		}
 	}
 	return opts
-}
-
-// UnknownOptionHandler parses all --from-... arguments into opts.Handlers
-func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flags.SplitArgument, args []string) (nextArgs []string, outErr error) {
-	value, hasValue := arg.Value()
-	if matchedKey := reArgName.FindStringSubmatch(option); len(matchedKey) == 2 && hasValue {
-		if matchedValue := reArgValue.FindStringSubmatch(value); len(matchedValue) > 2 {
-			defer func() {
-				// Catch any panic errors down the line
-				if r := recover(); r != nil {
-					outErr = errors.New(r)
-					return
-				}
-			}()
-			handler, err := handlers.MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
-			commandOptions.Handlers = append(commandOptions.Handlers, handlers.ConcreteSecretHandler{SecretHandler: handler})
-			return args, err
-		}
-	}
-	return args, nil
 }
 
 func sortedKeys(mp map[string][]byte) (keys []string) {
