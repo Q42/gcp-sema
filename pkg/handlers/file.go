@@ -3,8 +3,6 @@ package handlers
 import (
 	"fmt"
 	"io/ioutil"
-
-	"github.com/Q42/gcp-sema/pkg/secretmanager"
 )
 
 type fileHandler struct {
@@ -24,7 +22,4 @@ func (h *fileHandler) Populate(bucket map[string][]byte) {
 }
 func (h *fileHandler) Annotate(annotate func(key string, value string)) {
 	annotate(h.key, fmt.Sprintf("type=file,file=%s", h.file))
-}
-func (h *fileHandler) InjectClient(c secretmanager.KVClient) {
-	// noop
 }

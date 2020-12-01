@@ -4,8 +4,6 @@ go 1.14
 
 replace github.com/Q42/gcp-sema/pkg/secretmanager => ./pkg/secretmanager
 
-replace github.com/Q42/gcp-sema/pkg/dynamic => ./pkg/dynamic
-
 replace github.com/Q42/gcp-sema/pkg/schema => ./pkg/schema
 
 replace github.com/Q42/gcp-sema/pkg/handlers => ./pkg/handlers

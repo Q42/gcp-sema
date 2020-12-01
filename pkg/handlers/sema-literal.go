@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/Q42/gcp-sema/pkg/schema"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 )
 
@@ -25,17 +24,26 @@ func panicIfErr(err error) {
 }
 
 type semaHandlerLiteral struct {
-	key      string
-	secret   string
-	resolver schema.SchemaResolver
+	key    string
+	secret string
+	client secretmanager.KVClient
 	//private
-	cacheResolved schema.ResolvedSecretSema
+	cacheResolved ResolvedSecretSema
+}
+
+/* Test it conforms to interfaces */
+var _ SecretHandler = &semaHandlerLiteral{}
+var _ SecretHandlerWithSema = &semaHandlerLiteral{}
+
+/* Implemented methods */
+func (h *semaHandlerLiteral) InjectSemaClient(client secretmanager.KVClient, opts SecretHandlerOptions) {
+	h.client = client
 }
 
 func (h *semaHandlerLiteral) Prepare(bucket map[string]bool) {
-	secret, err := h.resolver.GetClient().Get(h.secret)
+	secret, err := h.client.Get(h.secret)
 	panicIfErr(err)
-	h.cacheResolved = schema.ResolvedSecretSema{Key: h.secret, Client: h.resolver.GetClient(), KV: secret}
+	h.cacheResolved = ResolvedSecretSema{Key: h.secret, Client: h.client, KV: secret}
 	bucket[h.key] = true
 }
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
@@ -48,7 +56,4 @@ func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {
 func (h *semaHandlerLiteral) Annotate(annotate func(key string, value string)) {
 	annotate(h.key, fmt.Sprintf("type=sema-literal,secret=%s", h.secret))
 	annotate(fmt.Sprintf("%s.%s", h.key, alfanum(h.secret)), h.cacheResolved.Annotation())
-}
-func (h *semaHandlerLiteral) InjectClient(c secretmanager.KVClient) {
-	// TODO
 }

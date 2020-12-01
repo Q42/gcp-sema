@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +32,7 @@ func TestParseRenderArgs(t *testing.T) {
 		Format: "yaml",
 		Name:   "very-secret",
 		Dir:    "secrets",
-		Handlers: []concreteSecretHandler{
+		Handlers: []handlers.ConcreteSecretHandler{
 			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
 			{SecretHandler: makeSecretWrapper("file", "myfile.txt", "myfile.txt")},
 			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "config-schema.json")},
@@ -76,7 +77,7 @@ secrets:
 	expected := RenderCommand{
 		Name:   "myapp1-v4",
 		Prefix: "myapp1_v4",
-		Handlers: []concreteSecretHandler{
+		Handlers: []handlers.ConcreteSecretHandler{
 			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
 		},
 	}
@@ -127,7 +128,7 @@ secrets:
 		Prefix: "myapp1_v4",
 		Format: "yaml",
 		Dir:    "secrets",
-		Handlers: []concreteSecretHandler{
+		Handlers: []handlers.ConcreteSecretHandler{
 			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
 			{SecretHandler: makeSecretWrapper("file", "myfile.txt", "myfile.txt")},
 			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "config-schema.json")},
@@ -141,8 +142,8 @@ secrets:
 
 }
 
-func makeSecretWrapper(handler string, name string, value string) SecretHandler {
-	secretHandler, err := MakeSecretHandler(handler, name, value)
+func makeSecretWrapper(handler string, name string, value string) handlers.SecretHandler {
+	secretHandler, err := handlers.MakeSecretHandler(handler, name, value)
 	panicIfErr(err)
 	return secretHandler
 }

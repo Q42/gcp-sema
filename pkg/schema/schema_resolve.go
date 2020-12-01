@@ -7,14 +7,14 @@ import (
 	"log"
 	"strings"
 
-	"github.com/Q42/gcp-sema/pkg/dynamic"
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/fatih/color"
 )
 
 // SchemaResolver -
 type SchemaResolver interface {
-	Resolve(schema ConvictConfigSchema) map[string]dynamic.ResolvedSecret
+	Resolve(schema ConvictConfigSchema) map[string]handlers.ResolvedSecret
 	IsVerbose() bool
 	GetClient() secretmanager.KVClient
 }
@@ -65,7 +65,7 @@ func ConvictToSemaKey(prefix string, path []string) (result []string) {
 	return
 }
 
-func (r schemaResolver) resolveConf(conf ConvictConfiguration, availableSecrets []secretmanager.KVValue) (result dynamic.ResolvedSecret, options []dynamic.ResolvedSecret, err error) {
+func (r schemaResolver) resolveConf(conf ConvictConfiguration, availableSecrets []secretmanager.KVValue) (result handlers.ResolvedSecret, options []handlers.ResolvedSecret, err error) {
 	// enumerate all places we want to look for this secret
 	suggestedKeys := ConvictToSemaKey(r.Prefix, conf.Path)
 
@@ -74,7 +74,7 @@ func (r schemaResolver) resolveConf(conf ConvictConfiguration, availableSecrets 
 	}
 
 	for _, suggestedKey := range suggestedKeys {
-		options = append(options, ResolvedSecretSema{Key: suggestedKey, Client: r.Client, KV: nil})
+		options = append(options, handlers.ResolvedSecretSema{Key: suggestedKey, Client: r.Client, KV: nil})
 	}
 	runtimeOpts := makeRuntimeResolve(conf)
 	options = append(options, runtimeOpts...)
@@ -85,7 +85,7 @@ func (r schemaResolver) resolveConf(conf ConvictConfiguration, availableSecrets 
 		for _, available := range availableSecrets {
 			// if it matches, return it
 			if r.Matcher(conf, available, suggestedKey) {
-				return ResolvedSecretSema{Key: suggestedKey, Client: r.Client, KV: available}, options, nil
+				return handlers.ResolvedSecretSema{Key: suggestedKey, Client: r.Client, KV: available}, options, nil
 			}
 		}
 	}
@@ -97,7 +97,7 @@ func (r schemaResolver) resolveConf(conf ConvictConfiguration, availableSecrets 
 }
 
 // quick and dirty equality
-func resolvedSecretEqual(a, b dynamic.ResolvedSecret) bool {
+func resolvedSecretEqual(a, b handlers.ResolvedSecret) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -109,9 +109,9 @@ func resolvedSecretEqual(a, b dynamic.ResolvedSecret) bool {
 
 type resolvedSecretRuntime struct{ conf ConvictConfiguration }
 
-func makeRuntimeResolve(conf ConvictConfiguration) []dynamic.ResolvedSecret {
+func makeRuntimeResolve(conf ConvictConfiguration) []handlers.ResolvedSecret {
 	if conf.DefaultValue != nil || conf.Env != "" || conf.Format.IsOptional() {
-		return []dynamic.ResolvedSecret{resolvedSecretRuntime{conf: conf}}
+		return []handlers.ResolvedSecret{resolvedSecretRuntime{conf: conf}}
 	}
 	return nil
 }
@@ -136,41 +136,6 @@ func (r resolvedSecretRuntime) GetSecretValue() (interface{}, error) {
 	return nil, nil // injected runtime
 }
 
-// ResolvedSecretSema -
-type ResolvedSecretSema struct {
-	Key    string
-	Client secretmanager.KVClient
-	KV     secretmanager.KVValue
-}
-
-func (r ResolvedSecretSema) Annotation() string {
-	if r.KV != nil {
-		return fmt.Sprintf("secretmanager(fullname: %s)", r.KV.GetFullName())
-	}
-	return r.String()
-}
-
-func (r ResolvedSecretSema) String() string {
-	return fmt.Sprintf("secretmanager(key: %s)", r.Key)
-}
-
-func (r ResolvedSecretSema) GetSecretValue() (interface{}, error) {
-	var err error
-	secret := r.KV
-	if secret == nil {
-		secret, err = r.Client.Get(r.Key)
-		if err != nil {
-			return nil, err
-		}
-	}
-	val, err := secret.GetValue()
-	if err != nil {
-		return nil, err
-	}
-	stringValue := string(val)
-	return &stringValue, nil
-}
-
 type semaNotFoundError struct {
 	conf          ConvictConfiguration
 	suggestedKeys []string
@@ -186,7 +151,7 @@ func (e semaNotFoundError) Error() string {
 }
 
 // private function to ease testing with mock data
-func (r schemaResolver) Resolve(schema ConvictConfigSchema) map[string]dynamic.ResolvedSecret {
+func (r schemaResolver) Resolve(schema ConvictConfigSchema) map[string]handlers.ResolvedSecret {
 	if r.Verbose {
 		log.Println(color.BlueString("SecretManager verbose output"))
 	}
@@ -200,7 +165,7 @@ func (r schemaResolver) Resolve(schema ConvictConfigSchema) map[string]dynamic.R
 
 	// Resolve all configuration options
 	allErrors := make([]error, 0)
-	allResolved := make(map[string]dynamic.ResolvedSecret, 0)
+	allResolved := make(map[string]handlers.ResolvedSecret, 0)
 	for _, conf := range schema.FlatConfigurations {
 		resolved, options, err := r.resolveConf(conf, r.cachedAvailable)
 		if err != nil {

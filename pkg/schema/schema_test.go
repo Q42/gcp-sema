@@ -32,5 +32,5 @@ func TestSchemaParsing(t *testing.T) {
 		{Path: []string{"log", "level"}, Format: logLevel, DefaultValue: "info", Doc: "", Env: "LOG_LEVEL"},
 		{Path: []string{"redis", "port"}, Format: arr, DefaultValue: []interface{}{float64(6379)}, Doc: "", Env: ""},
 		{Path: []string{"redis", "shards"}, Format: arr, DefaultValue: nil, Doc: "bla", Env: "REDIS_SHARDS"},
-	}, config.flatConfigurations, "")
+	}, config.FlatConfigurations, "")
 }

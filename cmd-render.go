@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"github.com/Q42/gcp-sema/pkg/handlers"
-	"github.com/Q42/gcp-sema/pkg/schema"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/go-errors/errors"
 	flags "github.com/jessevdk/go-flags"
@@ -74,19 +73,22 @@ func (opts *RenderCommand) Execute(args []string) error {
 
 	// Inject SeMa client into handlers:
 	var client secretmanager.KVClient
-	var matcher = schema.DefaultMatcher
-	var resolver schema.SchemaResolver
+	var err error
 	if opts.MockSema {
-		client, resolver = prepareMockClient()
+		client = secretmanager.NewMockClient("mock", "*", "")
 	} else {
 		if opts.OfflineLookupFile != "" {
-			client = prepareOfflineClient(opts.OfflineLookupFile)
+			client, err = secretmanager.NewOfflineClient(opts.OfflineLookupFile, opts.Positional.Project)
+			panicIfErr(err)
 		} else {
 			client = prepareSemaClient(opts.Positional.Project)
 		}
-		resolver = schema.MakeSchemaResolver(client, opts.Prefix, len(opts.Verbose) > 0, matcher)
 	}
-	opts.Handlers = injectSemaClient(opts.Handlers, resolver)
+	opts.Handlers = handlers.InjectSemaClient(opts.Handlers, client, handlers.SecretHandlerOptions{
+		Prefix:  opts.Prefix,
+		Mock:    opts.MockSema,
+		Verbose: len(opts.Verbose) > 0,
+	})
 
 	// Give all handlers a go at downloading key-value lists/preparations
 	// Give all handlers a go to write annotation data
@@ -294,7 +296,7 @@ func cliParseFromHandlers(commandOptions *RenderCommand, option string, arg flag
 					return
 				}
 			}()
-			handler, err := MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
+			handler, err := handlers.MakeSecretHandler(matchedKey[1], matchedValue[1], matchedValue[3])
 			commandOptions.Handlers = append(commandOptions.Handlers, handlers.ConcreteSecretHandler{SecretHandler: handler})
 			return args, err
 		}

@@ -1,17 +1,17 @@
-package main
+package schema
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Q42/gcp-sema/pkg/dynamic"
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHydrateNil(t *testing.T) {
 	var tree *ConvictJSONTree
-	result, err := hydrateSecretTree(tree, map[string]dynamic.ResolvedSecret{})
+	result, err := hydrateSecretTree(tree, map[string]handlers.ResolvedSecret{})
 	assert.Equal(t, nil, err)
 	assert.Equal(t, nil, result)
 }
@@ -24,9 +24,9 @@ func TestHydrateFlatTree(t *testing.T) {
     "LOG_FORMAT": { "format": ["json", "text"], "default": "json", "doc": "How to log" },
     "LOG_LEVEL": { "format": ["warn", "error"], "default": "error", "doc": "When to log" },
 }`))
-	result, err := hydrateSecretTree(schema.tree, map[string]dynamic.ResolvedSecret{
+	result, err := hydrateSecretTree(schema.tree, map[string]handlers.ResolvedSecret{
 		"LOG_FORMAT": resolvedSecretRuntime{*schema.tree.Children["LOG_FORMAT"].Leaf},
-		"LOG_LEVEL":  ResolvedSecretSema{key: "log_level", client: client},
+		"LOG_LEVEL":  handlers.ResolvedSecretSema{key: "log_level", client: client},
 	})
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
 	assert.Equal(t, nil, err)
@@ -54,8 +54,8 @@ func TestHydrateNestedTree(t *testing.T) {
 	// One is runtime, other is resolved
 	resolved := schemaResolver{Client: client, Verbose: true}.Resolve(schema)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["LOGGING.FORMAT"], "LOGGING.FORMAT")
-	assert.IsType(t, ResolvedSecretSema{}, resolved["LOGGING.LEVEL"], "LOGGING.LEVEL")
-	assert.Equal(t, client, resolved["LOGGING.LEVEL"].(ResolvedSecretSema).client, "LOGGING.LEVEL")
+	assert.IsType(t, handlers.ResolvedSecretSema{}, resolved["LOGGING.LEVEL"], "LOGGING.LEVEL")
+	assert.Equal(t, client, resolved["LOGGING.LEVEL"].(handlers.ResolvedSecretSema).client, "LOGGING.LEVEL")
 
 	result, err := hydrateSecretTree(schema.tree.Children["LOGGING"].Children["FORMAT"], resolved)
 	assert.Equal(t, nil, result)

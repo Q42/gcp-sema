@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"github.com/Q42/gcp-sema/pkg/dynamic"
+	"github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 )
 
@@ -16,13 +16,13 @@ var (
 
 /* interface implementations */
 
-func (CatchAllResolver) Resolve(schema ConvictConfigSchema) map[string]dynamic.ResolvedSecret {
-	allResolved := make(map[string]dynamic.ResolvedSecret, 0)
+func (CatchAllResolver) Resolve(schema ConvictConfigSchema) map[string]handlers.ResolvedSecret {
+	allResolved := make(map[string]handlers.ResolvedSecret, 0)
 	for _, conf := range schema.FlatConfigurations {
 		if conf.DefaultValue != nil || conf.Env != "" || conf.Format.IsOptional() {
 			continue
 		}
-		allResolved[conf.Key()] = ResolvedSecretSema{
+		allResolved[conf.Key()] = handlers.ResolvedSecretSema{
 			Key: ConvictToSemaKey("", conf.Path)[0],
 			KV:  &secretmanager.CatchAllFlexibleKVValue{},
 		}

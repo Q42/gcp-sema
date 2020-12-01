@@ -16,7 +16,6 @@ type SecretHandler interface {
 	Prepare(bucket map[string]bool)
 	Populate(bucket map[string][]byte)
 	Annotate(func(key string, value string))
-	InjectClient(client secretmanager.KVClient)
 }
 
 // ConcreteSecretHandler is a way to implement the Unmarshaller (UnmarshalFlag) interface from go-flags on the interface type SecretHandler.
@@ -52,45 +51,57 @@ type HandlerFactory interface {
 	ParseConfig(arg map[string]string) (SecretHandler, error)
 }
 
-type inlineFactory struct {
+// InlineFactory -
+type InlineFactory struct {
 	parseCommandline func(args []string) (SecretHandler, error)
 	parseConfig      func(arg map[string]string) (SecretHandler, error)
 }
 
-func (f inlineFactory) ParseCommandline(args []string) (SecretHandler, error) {
+// MakeInlineFactory -
+func MakeInlineFactory(argsToMap func(arg []string) (map[string]string, error), mapToSecret func(arg map[string]string) (SecretHandler, error)) HandlerFactory {
+	return InlineFactory{
+		parseCommandline: func(args []string) (SecretHandler, error) {
+			mp, err := argsToMap(args)
+			if err != nil {
+				return nil, err
+			}
+			return mapToSecret(mp)
+		},
+		parseConfig: func(arg map[string]string) (SecretHandler, error) {
+			return mapToSecret(arg)
+		},
+	}
+}
+
+// ParseCommandline -
+func (f InlineFactory) ParseCommandline(args []string) (SecretHandler, error) {
 	return f.parseCommandline(args)
 }
 
-func (f inlineFactory) ParseConfig(arg map[string]string) (SecretHandler, error) {
+// ParseConfig -
+func (f InlineFactory) ParseConfig(arg map[string]string) (SecretHandler, error) {
 	return f.parseConfig(arg)
 }
 
 // HandlerRegistry stores HandlerFactories
 var HandlerRegistry map[string]HandlerFactory = map[string]HandlerFactory{
-	"literal": inlineFactory{
-		parseCommandline: func(args []string) (SecretHandler, error) {
-			return &literalHandler{key: args[1], value: args[2]}, nil
-		},
-		parseConfig: func(input map[string]string) (SecretHandler, error) {
-			return &literalHandler{key: input["name"], value: input["value"]}, nil
-		},
-	},
-	"file": inlineFactory{
-		parseCommandline: func(args []string) (SecretHandler, error) {
-			return &fileHandler{key: args[1], file: args[2]}, nil
-		},
-		parseConfig: func(input map[string]string) (SecretHandler, error) {
-			return &fileHandler{key: input["name"], file: input["value"]}, nil
-		},
-	},
-	"sema-literal": inlineFactory{
-		parseCommandline: func(args []string) (SecretHandler, error) {
-			return &semaHandlerLiteral{key: args[1], secret: args[2]}, nil
-		},
-		parseConfig: func(input map[string]string) (SecretHandler, error) {
-			return &semaHandlerLiteral{key: input["name"], secret: input["semaKey"]}, nil
-		},
-	},
+	"literal": MakeInlineFactory(func(arg []string) (map[string]string, error) {
+		return map[string]string{"name": arg[1], "value": arg[2], "type": "literal"}, nil
+	}, func(input map[string]string) (SecretHandler, error) {
+		return &literalHandler{key: input["name"], value: input["value"]}, nil
+	}),
+
+	"file": MakeInlineFactory(func(arg []string) (map[string]string, error) {
+		return map[string]string{"name": arg[1], "path": arg[2], "type": "file"}, nil
+	}, func(input map[string]string) (SecretHandler, error) {
+		return &fileHandler{key: input["name"], file: input["path"]}, nil
+	}),
+
+	"sema-literal": MakeInlineFactory(func(arg []string) (map[string]string, error) {
+		return map[string]string{"name": arg[1], "semaKey": arg[2], "type": "sema-literal"}, nil
+	}, func(input map[string]string) (SecretHandler, error) {
+		return &semaHandlerLiteral{key: input["name"], secret: input["semaKey"]}, nil
+	}),
 }
 
 // MakeSecretHandler resolves the different kinds of handlers
@@ -118,3 +129,43 @@ func ParseSecretHandler(input map[string]string) (SecretHandler, error) {
 	}
 	return nil, fmt.Errorf("Could not parse handler config %v", input)
 }
+
+// SecretHandlerWithSema implement this interface to get a SemaClient injected
+type SecretHandlerWithSema interface {
+	InjectSemaClient(client secretmanager.KVClient, opts SecretHandlerOptions)
+}
+
+// SecretHandlerOptions -
+type SecretHandlerOptions struct {
+	Prefix  string
+	Mock    bool
+	Verbose bool
+}
+
+// InjectSemaClient -
+func InjectSemaClient(handlers []ConcreteSecretHandler, client secretmanager.KVClient, opts SecretHandlerOptions) (returned []ConcreteSecretHandler) {
+	for _, h := range handlers {
+		if h.SecretHandler == nil {
+			continue
+		}
+		if sh, isInjectable := h.SecretHandler.(SecretHandlerWithSema); isInjectable {
+			sh.InjectSemaClient(client, opts)
+		}
+	}
+	return
+}
+
+// func (c handlers.ConcreteSecretHandler) injectSemaClient(schemaResolver SchemaResolver) handlers.ConcreteSecretHandler {
+// 	switch s := c.SecretHandler.(type) {
+// 	case *semaHandlerEnvironmentVariables:
+// 		s.resolver = schemaResolver
+// 		c.SecretHandler = s
+// 	case *semaHandlerLiteral:
+// 		s.resolver = schemaResolver
+// 		c.SecretHandler = s
+// 	case *semaHandlerSingleKey:
+// 		s.resolver = schemaResolver
+// 		c.SecretHandler = s
+// 	}
+// 	return c
+// }
