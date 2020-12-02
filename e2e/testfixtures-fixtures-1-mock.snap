@@ -1,0 +1,13 @@
+stdout: kind: Secret
+stdout: apiVersion: v1
+stdout: metadata:
+stdout:     name: 1-mock
+stdout:     annotations:
+stdout:         sema/source.foo.txt: type=literal
+stdout:         sema/source.test.txt: type=literal
+stdout:     labels:
+stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout: type: Opaque
+stdout: data:
+stdout:   foo.txt: YmFy
+stdout:   test.txt: dmFsdWU=
