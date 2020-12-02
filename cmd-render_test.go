@@ -11,7 +11,7 @@ import (
 
 func TestParseRenderArgs(t *testing.T) {
 	// Test we can parse all the different source formats from the README.md
-	// format: "--from-[handler]=[key]=[source]"
+	// format: "-s [handler]=[key]=[source]"
 	args := parseRenderArgs([]string{
 		"my-project",
 		"--name=very-secret",
