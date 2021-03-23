@@ -1,6 +1,6 @@
 module github.com/Q42/gcp-sema
 
-go 1.14
+go 1.16
 
 replace github.com/Q42/gcp-sema/pkg/secretmanager => ./pkg/secretmanager
 
