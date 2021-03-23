@@ -10,7 +10,7 @@ replace github.com/Q42/gcp-sema/pkg/handlers => ./pkg/handlers
 
 require (
 	cloud.google.com/go v0.58.0
-	github.com/BTBurke/snapshot v1.7.0
+	github.com/BTBurke/snapshot v1.7.1
 	github.com/fatih/color v1.10.0
 	github.com/flynn/json5 v0.0.0-20160717195620-7620272ed633
 	github.com/go-errors/errors v1.1.1

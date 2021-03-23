@@ -30,8 +30,8 @@ cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0Zeo
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
 cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RXyy7KQOVs=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/BTBurke/snapshot v1.7.0 h1:2m8yu5eq/Dvc7/K/x/PXxx8GBy3rwEUPPN1/yroZLyo=
-github.com/BTBurke/snapshot v1.7.0/go.mod h1:cspdaSX9/xKGmBd/DxTjqA3ZvBrZ0xT0sAvLFZaYMvE=
+github.com/BTBurke/snapshot v1.7.1 h1:kj1ovMhpAqhbuEtj1/h94h2r9bjnAdDFKCEKsP9owW8=
+github.com/BTBurke/snapshot v1.7.1/go.mod h1:cspdaSX9/xKGmBd/DxTjqA3ZvBrZ0xT0sAvLFZaYMvE=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
