@@ -15,7 +15,7 @@ require (
 	github.com/flynn/json5 v0.0.0-20160717195620-7620272ed633
 	github.com/go-errors/errors v1.1.1
 	github.com/golang/protobuf v1.4.2
-	github.com/jessevdk/go-flags v1.4.0
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/joho/godotenv v1.3.0
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1
