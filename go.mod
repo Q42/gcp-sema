@@ -23,8 +23,8 @@ require (
 	github.com/segmentio/textio v1.2.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	google.golang.org/api v0.42.0
-	google.golang.org/genproto v0.0.0-20210312152112-fc591d9ea70f
+	google.golang.org/api v0.43.0
+	google.golang.org/genproto v0.0.0-20210319143718-93e7006c17a6
 	google.golang.org/grpc v1.36.0
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
