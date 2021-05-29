@@ -9,6 +9,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestParseRenderArgsWithNamespace(t *testing.T) {
+	// Test we can parse all the different source formats from the README.md
+	// format: "--from-[handler]=[key]=[source]"
+	args := parseRenderArgs([]string{
+		"my-project",
+		"--name=very-secret",
+		// literals just like kubectl create secret
+		"-s literal=myfile.txt=literal-value",
+		"--namespace=foobar",
+		"test",
+	})
+
+	expected := RenderCommand{
+		Format:    "yaml",
+		Name:      "very-secret",
+		Dir:       "secrets",
+		Namespace: "foobar",
+		Handlers: []handlers.ConcreteSecretHandler{
+			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
+		},
+	}
+	expected.Positional.Project = "my-project"
+
+	assert.Equal(t, expected, args, "Arguments must be parsed correctly")
+
+}
+
 func TestParseRenderArgs(t *testing.T) {
 	// Test we can parse all the different source formats from the README.md
 	// format: "-s [handler]=[key]=[source]"
@@ -84,11 +111,34 @@ secrets:
 	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
 }
 
+func TestParseNamespaceInConfig(t *testing.T) {
+	config := fmt.Sprintf(`
+name: myapp1-v4
+prefix: myapp1_v4
+namespace: foobar
+secrets:
+- path: config-env.json
+  name: config-env.json
+  schema: "server/config-schema.json"
+  type: sema-schema-to-file`)
+	parsedConfig := parseConfigFileData([]byte(config))
+	expected := RenderCommand{
+		Name:      "myapp1-v4",
+		Prefix:    "myapp1_v4",
+		Namespace: "foobar",
+		Handlers: []handlers.ConcreteSecretHandler{
+			{SecretHandler: makeSecretWrapper("sema-schema-to-file", "config-env.json", "server/config-schema.json")},
+		},
+	}
+	assert.Equal(t, expected, parsedConfig, "Configfile must be parsed correctly")
+}
+
 func TestMergeConfig(t *testing.T) {
 	// Mock data config
 	config := fmt.Sprintf(`
 name: myapp1-v4
 prefix: myapp1_v4
+namespace: something
 secrets:
 - path: config-env.json
   name: config-env.json
@@ -124,10 +174,11 @@ secrets:
 	opts.mergeCommandOptions(cmd, parsedConfig)
 
 	expected := RenderCommand{
-		Name:   "very-secret",
-		Prefix: "myapp1_v4",
-		Format: "yaml",
-		Dir:    "secrets",
+		Name:      "very-secret",
+		Prefix:    "myapp1_v4",
+		Format:    "yaml",
+		Dir:       "secrets",
+		Namespace: "something",
 		Handlers: []handlers.ConcreteSecretHandler{
 			{SecretHandler: makeSecretWrapper("literal", "myfile.txt", "literal-value")},
 			{SecretHandler: makeSecretWrapper("file", "myfile.txt", "myfile.txt")},

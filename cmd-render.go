@@ -123,6 +123,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 			Type:       "Opaque",
 			Metadata: secretYAMLMetadata{
 				Name:        opts.Name,
+				Namespace:   opts.Namespace,
 				Annotations: annotations,
 				Labels: map[string]string{
 					"info/generated-by": "github.com/q42/gcp-sema",
@@ -188,6 +189,10 @@ func (opts *RenderCommand) mergeCommandOptions(command *flags.Command, configFil
 	if dirOption.IsSetDefault() && configFileOptions.Dir != "" {
 		opts.Dir = configFileOptions.Dir
 	}
+	namespaceOption := command.FindOptionByLongName("namespace")
+	if namespaceOption.IsSetDefault() && configFileOptions.Namespace != "" {
+		opts.Namespace = configFileOptions.Namespace
+	}
 	opts.Handlers = append(opts.Handlers, configFileOptions.Handlers...)
 
 }
@@ -234,14 +239,16 @@ type RenderCommand struct {
 	// Debugging/offline usage
 	OfflineLookupFile string ` env:"OFFLINE" long:"offline" description:"You might want to run sema as an unprivileged user, for testing/validation purposes for example. Use this to provide fake/real/offline secrets."`
 	MockSema          bool   ` env:"MOCK_SEMA" long:"mock-sema" description:"If you want to run without having Secret-Manager access"`
+	Namespace         string ` env:"NAMESPACE" short:"n" long:"namespace" description:"The namespace you want to deploy the secret in"`
 }
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable
 type RenderConfigYAML struct {
-	Name    *string             `yaml:"name"`
-	Prefix  *string             `yaml:"prefix"`
-	Dir     *string             `yaml:"dir"`
-	Secrets []map[string]string `yaml:"secrets"`
+	Name      *string             `yaml:"name"`
+	Prefix    *string             `yaml:"prefix"`
+	Dir       *string             `yaml:"dir"`
+	Secrets   []map[string]string `yaml:"secrets"`
+	Namespace *string             `yaml:"namespace"`
 }
 
 // For testing, repeatably executable
@@ -268,6 +275,7 @@ func parseConfigFileData(data []byte) RenderCommand {
 	opts.Name = valueOrEmpty(parsed.Name)
 	opts.Prefix = valueOrEmpty(parsed.Prefix)
 	opts.Dir = valueOrEmpty(parsed.Dir)
+	opts.Namespace = valueOrEmpty(parsed.Namespace)
 	opts.Handlers = []handlers.ConcreteSecretHandler{}
 	for _, val := range parsed.Secrets {
 		if _, ok := val["type"]; ok {
@@ -305,6 +313,12 @@ func valueOrEmpty(str *string) string {
 	}
 	return *str
 }
+func valueOrDefault(str *string, defaultValue string) string {
+	if str == nil {
+		return defaultValue
+	}
+	return *str
+}
 
 type secretYAML struct {
 	Kind       string             `yaml:"kind"`
@@ -316,5 +330,6 @@ type secretYAML struct {
 type secretYAMLMetadata struct {
 	Name        string            `yaml:"name"`
 	Annotations map[string]string `yaml:"annotations"`
+	Namespace   string            `yaml:"namespace,omitempty"`
 	Labels      map[string]string `yaml:"labels"`
 }
