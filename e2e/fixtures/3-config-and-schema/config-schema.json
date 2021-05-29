@@ -1,0 +1,27 @@
+{
+  "GCLOUD_PROJECT": {
+    "default": null,
+    "format": "String",
+    "env": "GCLOUD_PROJECT"
+  },
+	"HTTP_PORT": {
+    "default": 8080,
+    "format": "port",
+    "env": "HTTP_PORT"
+  },
+	"LOGLEVEL": {
+    "default": "info",
+    "format": [
+      "none",
+      "debug",
+      "info",
+      "warn",
+      "error"
+    ]
+  },
+	"SECRET": {
+		"default": null,
+		"format": "String",
+		"doc": "Application secret"
+	}
+}
