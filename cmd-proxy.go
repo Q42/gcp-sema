@@ -9,8 +9,8 @@ import (
 	"net/url"
 
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
+	"github.com/Q42/gcp-sema/pkg/secretmanager/singleflight"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 )
 
 var proxyDescription = `proxy starts a server which can be used with SEMA_PROXY for the regular commands.`
@@ -23,8 +23,6 @@ type proxyCommand struct {
 	secretListCache map[string][]secretmanager.KVValue
 	secretDataCache map[string][]byte
 	secretClients   map[string]secretmanager.KVClient
-	sfList          singleflight.Group
-	sfData          singleflight.Group
 }
 
 func init() {
@@ -53,7 +51,7 @@ func (opts *proxyCommand) getClient(projectID string) secretmanager.KVClient {
 	if c, exists := opts.secretClients[projectID]; exists {
 		return c
 	}
-	client := prepareSemaClient(projectID)
+	client := singleflight.New(prepareSemaClient(projectID))
 	opts.secretClients[projectID] = client
 	return client
 }
@@ -65,26 +63,19 @@ func (opts *proxyCommand) list(rw http.ResponseWriter, r *http.Request) {
 
 	// Get keys in project
 	var keys []secretmanager.KVValue
-
 	if listKeys, exists := opts.secretListCache[projectID]; exists {
 		rw.Header().Add("Cache-Hit", "true")
 		keys = listKeys
 	} else {
 		rw.Header().Add("Cache-Hit", "false")
-		keysInterface, err, _ := opts.sfList.Do(projectID, func() (interface{}, error) {
-			client := opts.getClient(projectID)
-			keys, err := client.ListKeys()
-			if err != nil {
-				opts.secretListCache[projectID] = keys
-			}
-			return keys, err
-		})
+		client := opts.getClient(projectID)
+		keys, err = client.ListKeys()
 		if err != nil {
 			log.Println(err)
 			http.Error(rw, err.Error(), 500)
 			return
 		}
-		keys = keysInterface.([]secretmanager.KVValue)
+		opts.secretListCache[projectID] = keys
 	}
 
 	log.Printf("Retrieved %d keys from %s", len(keys), projectID)
@@ -114,71 +105,50 @@ func (opts *proxyCommand) get(rw http.ResponseWriter, r *http.Request) {
 	shortName := r.URL.Query().Get("shortName")
 	fullName := r.URL.Query().Get("fullName")
 
-	type resultStruct struct {
-		kv   secretmanager.KVValue
-		data []byte
-		hit  bool
+	// Get secret
+	var err error
+	var k secretmanager.KVValue
+	if listCache, exists := opts.secretListCache[projectID]; exists {
+		for _, existingSecret := range listCache {
+			if existingSecret.GetShortName() == shortName {
+				k = existingSecret
+			}
+		}
+	}
+	if k == nil {
+		client := opts.getClient(projectID)
+		k, err = client.Get(shortName)
+		if err != nil {
+			log.Println(err)
+			http.Error(rw, err.Error(), 500)
+			return
+		}
 	}
 
-	resultInterface, err, _ := opts.sfData.Do(fmt.Sprintf("%q/%q/%q", projectID, shortName, fullName), func() (interface{}, error) {
-		// Get secret
-		var err error
-		var k secretmanager.KVValue
-		if listCache, exists := opts.secretListCache[projectID]; exists {
-			for _, existingSecret := range listCache {
-				if existingSecret.GetShortName() == shortName {
-					k = existingSecret
-				}
-			}
-		}
-
-		if k == nil {
-			client := opts.getClient(projectID)
-			k, err = client.Get(shortName)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Get the secret data payload
-		var data []byte
-		var hit bool
-		if d, exists := opts.secretDataCache[fullName]; exists {
-			hit = true
-			data = d
-		} else {
-			hit = false
-			data, err = k.GetValue()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return resultStruct{k, data, hit}, nil
-	})
-
-	if err != nil {
-		log.Println(err)
-		http.Error(rw, err.Error(), 500)
-		return
-	}
-
-	result := resultInterface.(resultStruct)
-
-	if result.hit {
+	// Get the secret data payload
+	var data []byte
+	if d, exists := opts.secretDataCache[fullName]; exists {
 		rw.Header().Add("Cache-Hit", "true")
+		data = d
 	} else {
 		rw.Header().Add("Cache-Hit", "false")
+		data, err = k.GetValue()
+		if err != nil {
+			log.Println(err)
+			http.Error(rw, err.Error(), 500)
+			return
+		}
 	}
 
 	log.Printf("Sending %s", fullName)
+
 	jsonData, err := json.Marshal(proxySecretDetail{
 		ProxySecret: proxySecret{
-			ShortName: result.kv.GetShortName(),
-			FullName:  result.kv.GetFullName(),
-			Labels:    result.kv.GetLabels(),
+			ShortName: k.GetShortName(),
+			FullName:  k.GetFullName(),
+			Labels:    k.GetLabels(),
 		},
-		Data: base64.RawStdEncoding.EncodeToString(result.data),
+		Data: base64.RawStdEncoding.EncodeToString(data),
 	})
 	if err != nil {
 		http.Error(rw, err.Error(), 500)
