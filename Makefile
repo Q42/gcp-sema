@@ -3,7 +3,7 @@
 
 .PHONY: test
 test: ## Test all the sub-packages, uses: go test -v $(go list ./...)
-	GO111MODULE=on TRACE=1 go test -cover -v ./
+	GO111MODULE=on TRACE=1 go test -cover -v ./...
 
 install: build-local
 	cp dist/sema /usr/local/bin/sema
