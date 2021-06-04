@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"runtime"
 	"testing"
 
 	"github.com/BTBurke/snapshot"
@@ -16,10 +15,17 @@ import (
 )
 
 func TestFixtures(t *testing.T) {
+	build := exec.Command("go", "build", "-ldflags", "-w -s", "-o", "./gcp-sema", "..")
+	build.Env = append(os.Environ(), "GO111MODULE=on", "CGO_ENABLED=0")
+	build.Stderr = textio.NewPrefixWriter(os.Stderr, "stderr: ")
+	build.Stdout = textio.NewPrefixWriter(os.Stderr, "stdout: ")
+	err := build.Run()
+	assert.NoError(t, err)
+
 	files, _ := ioutil.ReadDir("./fixtures")
 	for _, f := range files {
 		cmd := exec.Command("sh", "run.sh")
-		cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s:../../../dist/gcp-sema_%s_%s", os.Getenv("PATH"), runtime.GOOS, runtime.GOARCH))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s:./", os.Getenv("PATH")))
 		cmd.Dir = path.Join("./fixtures", f.Name())
 		t.Run(cmd.Dir, func(t *testing.T) {
 			out := bytes.NewBuffer(nil)

@@ -24,9 +24,9 @@ func TestHydrateFlatTree(t *testing.T) {
     "LOG_FORMAT": { "format": ["json", "text"], "default": "json", "doc": "How to log" },
     "LOG_LEVEL": { "format": ["warn", "error"], "default": "error", "doc": "When to log" },
 }`))
-	result, err := hydrateSecretTree(schema.tree, map[string]handlers.ResolvedSecret{
-		"LOG_FORMAT": resolvedSecretRuntime{*schema.tree.Children["LOG_FORMAT"].Leaf},
-		"LOG_LEVEL":  handlers.ResolvedSecretSema{key: "log_level", client: client},
+	result, err := hydrateSecretTree(schema.Tree, map[string]handlers.ResolvedSecret{
+		"LOG_FORMAT": resolvedSecretRuntime{*schema.Tree.Children["LOG_FORMAT"].Leaf},
+		"LOG_LEVEL":  handlers.ResolvedSecretSema{Key: "log_level", Client: client},
 	})
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
 	assert.Equal(t, nil, err)
@@ -47,21 +47,24 @@ func TestHydrateNestedTree(t *testing.T) {
     }
 }`))
 	assert.Equal(t, nil, err)
-	assert.NotNil(t, schema.tree.Children["LOGGING"], "LOGGING")
-	assert.NotNil(t, schema.tree.Children["LOGGING"].Children["FORMAT"], "FORMAT")
-	assert.NotNil(t, schema.tree.Children["LOGGING"].Children["LEVEL"], "LEVEL")
+	assert.NotNil(t, schema.Tree.Children["LOGGING"], "LOGGING")
+	assert.NotNil(t, schema.Tree.Children["LOGGING"].Children["FORMAT"], "FORMAT")
+	assert.NotNil(t, schema.Tree.Children["LOGGING"].Children["LEVEL"], "LEVEL")
 
 	// One is runtime, other is resolved
 	resolved := schemaResolver{Client: client, Verbose: true}.Resolve(schema)
 	assert.IsType(t, resolvedSecretRuntime{}, resolved["LOGGING.FORMAT"], "LOGGING.FORMAT")
 	assert.IsType(t, handlers.ResolvedSecretSema{}, resolved["LOGGING.LEVEL"], "LOGGING.LEVEL")
-	assert.Equal(t, client, resolved["LOGGING.LEVEL"].(handlers.ResolvedSecretSema).client, "LOGGING.LEVEL")
+	assert.Equal(t, client, resolved["LOGGING.LEVEL"].(handlers.ResolvedSecretSema).Client, "LOGGING.LEVEL")
 
-	result, err := hydrateSecretTree(schema.tree.Children["LOGGING"].Children["FORMAT"], resolved)
+	result, err := hydrateSecretTree(schema.Tree.Children["LOGGING"].Children["FORMAT"], resolved)
 	assert.Equal(t, nil, result)
+	assert.NoError(t, err)
 
-	result, err = hydrateSecretTree(schema.tree, resolved)
+	result, err = hydrateSecretTree(schema.Tree, resolved)
+	assert.NoError(t, err)
 	levelValue, err := resolved["LOGGING.LEVEL"].GetSecretValue()
+	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}(map[string]interface{}{"LOGGING": map[string]interface{}{"LEVEL": levelValue}}), result)
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
 	assert.Equal(t, nil, err)

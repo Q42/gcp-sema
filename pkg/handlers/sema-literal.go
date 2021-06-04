@@ -37,13 +37,19 @@ var _ SecretHandlerWithSema = &semaHandlerLiteral{}
 
 /* Implemented methods */
 func (h *semaHandlerLiteral) InjectSemaClient(client secretmanager.KVClient, opts SecretHandlerOptions) {
+	if opts.Mock {
+		h.cacheResolved = ResolvedSecretSema{Key: h.secret, Client: h.client, KV: &secretmanager.CatchAllFlexibleKVValue{}}
+		return
+	}
 	h.client = client
 }
 
 func (h *semaHandlerLiteral) Prepare(bucket map[string]bool) {
-	secret, err := h.client.Get(h.secret)
-	panicIfErr(err)
-	h.cacheResolved = ResolvedSecretSema{Key: h.secret, Client: h.client, KV: secret}
+	if h.cacheResolved.KV == nil {
+		secret, err := h.client.Get(h.secret)
+		panicIfErr(err)
+		h.cacheResolved = ResolvedSecretSema{Key: h.secret, Client: h.client, KV: secret}
+	}
 	bucket[h.key] = true
 }
 func (h *semaHandlerLiteral) Populate(bucket map[string][]byte) {

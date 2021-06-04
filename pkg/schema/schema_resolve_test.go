@@ -3,6 +3,7 @@ package schema
 import (
 	"testing"
 
+	. "github.com/Q42/gcp-sema/pkg/handlers"
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/stretchr/testify/assert"
 )
