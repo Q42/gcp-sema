@@ -29,5 +29,5 @@ require (
 	google.golang.org/grpc v1.38.0
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-	k8s.io/apimachinery v0.20.5
+	k8s.io/apimachinery v0.21.3
 )
