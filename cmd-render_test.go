@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/Q42/gcp-sema/pkg/handlers"
@@ -74,7 +73,7 @@ func TestParseRenderArgs(t *testing.T) {
 }
 
 func TestRenderLiteral(t *testing.T) {
-	obj := make(map[string][]byte, 0)
+	obj := make(map[string][]byte)
 	args := parseRenderArgs([]string{"my-project", "--format=env", "-s literal=text.txt=foobar"})
 	args.Handlers[0].Populate(obj)
 	assert.Equal(t, []byte("foobar"), obj["text.txt"], "Literal SecretHandler should work")
@@ -92,14 +91,15 @@ func TestRenderFormat(t *testing.T) {
 }
 
 func TestParseSecretConfig(t *testing.T) {
-	config := fmt.Sprintf(`
+	config := `
 name: myapp1-v4
 prefix: myapp1_v4
 secrets:
 - path: config-env.json
   name: config-env.json
   schema: "server/config-schema.json"
-  type: sema-schema-to-file`)
+  type: sema-schema-to-file`
+
 	parsedConfig := parseConfigFileData([]byte(config))
 	expected := RenderCommand{
 		Name:   "myapp1-v4",
@@ -112,7 +112,7 @@ secrets:
 }
 
 func TestParseNamespaceInConfig(t *testing.T) {
-	config := fmt.Sprintf(`
+	config := `
 name: myapp1-v4
 prefix: myapp1_v4
 namespace: foobar
@@ -120,7 +120,8 @@ secrets:
 - path: config-env.json
   name: config-env.json
   schema: "server/config-schema.json"
-  type: sema-schema-to-file`)
+  type: sema-schema-to-file`
+
 	parsedConfig := parseConfigFileData([]byte(config))
 	expected := RenderCommand{
 		Name:      "myapp1-v4",
@@ -135,7 +136,7 @@ secrets:
 
 func TestMergeConfig(t *testing.T) {
 	// Mock data config
-	config := fmt.Sprintf(`
+	config := `
 name: myapp1-v4
 prefix: myapp1_v4
 namespace: something
@@ -143,7 +144,8 @@ secrets:
 - path: config-env.json
   name: config-env.json
   schema: "server/config-schema.json"
-  type: sema-schema-to-file`)
+  type: sema-schema-to-file`
+
 	// Mock cmd arguments
 	args := []string{
 		"render",
@@ -169,7 +171,7 @@ secrets:
 	cmd, err := p.AddCommand("render", renderDescription, renderDescriptionLong, &opts)
 	panicIfErr(err)
 	parsedConfig := parseConfigFileData([]byte(config))
-	_, err = p.ParseArgs(args)
+	_, _ = p.ParseArgs(args)
 
 	opts.mergeCommandOptions(cmd, parsedConfig)
 

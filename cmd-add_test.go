@@ -16,7 +16,7 @@ func TestAddForceOverwrite(t *testing.T) {
 	cmdOpts := addCommand{Positional: addCommandPositional{"cl-test", "withlabels"}, Data: "baz1", Labels: map[string]string{"a": "b"}, client: kv, Force: []bool{true}}
 	err := cmdOpts.Execute([]string{})
 	assert.NoError(t, err)
-	secretData, err := secret.GetValue()
+	secretData, _ := secret.GetValue()
 	assert.Equal(t, "baz1", string(secretData))
 
 	// Update secret with changed labels
@@ -25,7 +25,7 @@ func TestAddForceOverwrite(t *testing.T) {
 	cmdOpts = addCommand{Positional: addCommandPositional{"cl-test", "withlabels"}, Data: "baz1", Labels: map[string]string{"a": "different"}, client: kv, Force: []bool{true}}
 	err = cmdOpts.Execute([]string{})
 	assert.NoError(t, err)
-	secretData, err = secret.GetValue()
+	secretData, _ = secret.GetValue()
 	assert.Equal(t, "baz1", string(secretData))
 	assert.Equal(t, map[string]string{"a": "different"}, secret.GetLabels())
 
@@ -34,7 +34,7 @@ func TestAddForceOverwrite(t *testing.T) {
 	cmdOpts = addCommand{Positional: addCommandPositional{"cl-test", "withoutlabels"}, Data: "baz2", client: kv, Force: []bool{true}}
 	err = cmdOpts.Execute([]string{})
 	assert.NoError(t, err)
-	secretData, err = secret.GetValue()
+	secretData, _ = secret.GetValue()
 	assert.Equal(t, "baz2", string(secretData))
 }
 
@@ -65,13 +65,13 @@ func TestAddNotExisting(t *testing.T) {
 	err := cmdOpts.Execute([]string{})
 	assert.NoError(t, err)
 	secret, _ := kv.Get("foo")
-	secretData, err := secret.GetValue()
+	secretData, _ := secret.GetValue()
 	assert.Equal(t, "baz", string(secretData))
 }
 
 func TestEqualLabels(t *testing.T) {
-	assert.Equal(t, true, equalLabels(make(map[string]string, 0), nil))
-	assert.Equal(t, true, equalLabels(nil, make(map[string]string, 0)))
+	assert.Equal(t, true, equalLabels(make(map[string]string), nil))
+	assert.Equal(t, true, equalLabels(nil, make(map[string]string)))
 	assert.Equal(t, true, equalLabels(map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}))
 	assert.Equal(t, false, equalLabels(map[string]string{"foo": "bar"}, map[string]string{"john": "doe"}))
 }

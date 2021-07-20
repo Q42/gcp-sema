@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 
 	"github.com/Q42/gcp-sema/pkg/handlers"
@@ -17,9 +16,6 @@ import (
 )
 
 var (
-	// formats of cli-arg is "{reArgName}{reArgValue}"
-	reArgName         = regexp.MustCompile(`from-([^=]+)`)
-	reArgValue        = regexp.MustCompile(`([^=]+)(=([^=]+))?`)
 	renderCommandOpts = &RenderCommand{}
 	renderCommand     *flags.Command
 )
@@ -93,8 +89,8 @@ func (opts *RenderCommand) Execute(args []string) error {
 
 	// Give all handlers a go at downloading key-value lists/preparations
 	// Give all handlers a go to write annotation data
-	fields := make(map[string]bool, 0)
-	annotations := make(map[string]string, 0)
+	fields := make(map[string]bool)
+	annotations := make(map[string]string)
 	for _, h := range opts.Handlers {
 		h.Prepare(fields)
 		h.Annotate(func(key, value string) {
@@ -139,7 +135,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 	}
 
 	// Give all handlers a go to write to the secret data
-	data := make(map[string][]byte, 0)
+	data := make(map[string][]byte)
 	for _, h := range opts.Handlers {
 		h.Populate(data)
 	}
@@ -207,7 +203,7 @@ func writeDevSecretFile(directory, key string, value []byte) {
 	}
 	_, err = os.Stat(filepath)
 	if err == nil {
-		fmt.Printf(fmt.Sprintf("You are about to overwrite '%s', are you sure? [y/N]: ", filepath))
+		fmt.Printf("You are about to overwrite '%s', are you sure? [y/N]: ", filepath)
 		confirmed := askForConfirmation()
 		if confirmed {
 			err = ioutil.WriteFile(filepath, value, 0755)
@@ -220,7 +216,7 @@ func writeDevSecretFile(directory, key string, value []byte) {
 		if err != nil {
 			panic(fmt.Sprintf("Error writing to file %s\nerr: %s", filepath, err.Error()))
 		}
-		fmt.Println(fmt.Sprintf("Rendered %s", filepath))
+		fmt.Printf("Rendered %s\n", filepath)
 	}
 }
 
@@ -313,12 +309,6 @@ func sortedKeysB(mp map[string]bool) (keys []string) {
 func valueOrEmpty(str *string) string {
 	if str == nil {
 		return ""
-	}
-	return *str
-}
-func valueOrDefault(str *string, defaultValue string) string {
-	if str == nil {
-		return defaultValue
 	}
 	return *str
 }

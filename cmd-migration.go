@@ -368,7 +368,7 @@ func (opts *migrateCommand) getProject() string {
 }
 
 func prompt(name string) string {
-	fmt.Printf(name)
+	fmt.Print(name)
 	reader := bufio.NewReader(os.Stdin)
 	value, _ := reader.ReadString('\n')
 	value = strings.Trim(value, "\n\r")
@@ -384,21 +384,12 @@ func isListElement(availables []string, suggestion string) bool {
 	return false
 }
 
-func colorBasedOnAvailability(availables []string, suggestion string) string {
-	for _, available := range availables {
-		if suggestion == available {
-			return color.GreenString(suggestion)
-		}
-	}
-	return color.RedString(suggestion)
-}
-
 func listFilesMatching(path, namePattern string, maxDepth int) (files []string) {
 	cmd := exec.CommandContext(context.Background(), "find", path, "-name", namePattern, "-maxdepth", strconv.Itoa(maxDepth), "-print")
 	data := bytes.NewBuffer([]byte{})
 	cmd.Stdout = data
 	cmd.Run()
-	for _, file := range strings.Split(string(data.Bytes()), "\n") {
+	for _, file := range strings.Split(data.String(), "\n") {
 		if file != "" {
 			files = append(files, file)
 		}
@@ -411,7 +402,7 @@ func getCommandOutput(command string, args ...string) (output string, err error)
 	data := bytes.NewBuffer([]byte{})
 	cmd.Stdout = data
 	err = cmd.Run()
-	output = strings.TrimSpace(string(data.Bytes()))
+	output = strings.TrimSpace(data.String())
 	return
 }
 
