@@ -238,11 +238,11 @@ type RenderCommand struct {
 	Name       string `long:"name" description:"Name of Kubernetes secret. NB: with Kustomize this will just be the prefix!"`
 	Namespace  string ` env:"NAMESPACE" short:"n" long:"namespace" description:"The namespace you want to deploy the secret in"`
 	Dir        string `short:"d" long:"dir" default:"secrets" description:"Specify output directory when writing out to files, only used in combination with --format=files"`
-	ConfigFile string `short:"c" long:"config" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
+	ConfigFile string `short:"c" long:"config" env:"SEMA_CONFIG" description:"We read flags from this file, when present. Default location: .secrets-config.yml."`
 	// Debugging/offline usage
-	Proxy             string ` env:"SEMA_PROXY" long:"proxy" description:"To use a proxy that caches secrets. See 'gcp-sema proxy'."`
-	OfflineLookupFile string ` env:"OFFLINE" long:"offline" description:"You might want to run sema as an unprivileged user, for testing/validation purposes for example. Use this to provide fake/real/offline secrets."`
-	MockSema          bool   ` env:"MOCK_SEMA" long:"mock-sema" description:"If you want to run without having Secret-Manager access"`
+	Proxy             string `env:"SEMA_PROXY" long:"proxy" description:"To use a proxy that caches secrets. See 'gcp-sema proxy'."`
+	OfflineLookupFile string `env:"OFFLINE" long:"offline" description:"You might want to run sema as an unprivileged user, for testing/validation purposes for example. Use this to provide fake/real/offline secrets."`
+	MockSema          bool   `env:"MOCK_SEMA" long:"mock-sema" description:"If you want to run without having Secret-Manager access"`
 }
 
 // RenderConfigYAML is the same as RenderCommand but easily parsable

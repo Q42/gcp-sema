@@ -1,0 +1,6 @@
+name: myapp
+secrets:
+- name: LOCATION_CLI_ARG
+  path: LOCATION_CLI_ARG
+  semaKey: LOCATION_CLI_ARG
+  type: sema-literal

@@ -1,0 +1,6 @@
+name: myapp
+secrets:
+- name: LOCATION_ALT
+  path: LOCATION_ALT
+  semaKey: LOCATION_ALT
+  type: sema-literal

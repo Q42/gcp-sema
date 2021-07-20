@@ -25,7 +25,7 @@ func TestFixtures(t *testing.T) {
 	files, _ := ioutil.ReadDir("./fixtures")
 	for _, f := range files {
 		cmd := exec.Command("sh", "run.sh")
-		cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s:./", os.Getenv("PATH")))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=../..:%s", os.Getenv("PATH")))
 		cmd.Dir = path.Join("./fixtures", f.Name())
 		t.Run(cmd.Dir, func(t *testing.T) {
 			out := bytes.NewBuffer(nil)
