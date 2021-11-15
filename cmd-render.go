@@ -115,6 +115,7 @@ func (opts *RenderCommand) Execute(args []string) error {
 
 	// Preamble, depending on the format
 	if opts.Format == "yaml" {
+		annotations["info/generated-by"] = "github.com/q42/gcp-sema"
 		yml, err := yaml.Marshal(secretYAML{
 			Kind:       "Secret",
 			APIVersion: "v1",
@@ -123,9 +124,6 @@ func (opts *RenderCommand) Execute(args []string) error {
 				Name:        opts.Name,
 				Namespace:   opts.Namespace,
 				Annotations: annotations,
-				Labels: map[string]string{
-					"info/generated-by": "github.com/q42/gcp-sema",
-				},
 			},
 		})
 		panicIfErr(err)
