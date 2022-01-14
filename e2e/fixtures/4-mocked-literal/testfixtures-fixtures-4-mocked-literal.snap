@@ -3,10 +3,10 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: myapp-v7
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.LITERAL: type=sema-literal,secret=my-literal
 stdout:         sema/source.LITERAL.my-literal: 'secretmanager(fullname: fullname-fake)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   LITERAL: 

@@ -3,13 +3,13 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: myapp-v7
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.config-env.json: type=sema-schema-to-file,schema=config-schema.json
 stdout:         sema/source.config-env.json.GCLOUD_PROJECT: 'runtime(env: $GCLOUD_PROJECT)'
 stdout:         sema/source.config-env.json.HTTP_PORT: 'runtime(env: $HTTP_PORT or default: 8080)'
 stdout:         sema/source.config-env.json.LOGLEVEL: 'runtime(default: "info")'
 stdout:         sema/source.config-env.json.SECRET: 'secretmanager(fullname: project/dummy/secrets/myapp_secret)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   config-env.json: ewogICJTRUNSRVQiOiAiaGlnaGx5Y2xhc3NpZmllZCIKfQ==

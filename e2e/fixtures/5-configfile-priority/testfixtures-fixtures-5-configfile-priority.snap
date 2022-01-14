@@ -3,10 +3,10 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: myapp
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.LOCATION_DEFAULT: type=sema-literal,secret=LOCATION_DEFAULT
 stdout:         sema/source.LOCATION_DEFAULT.LOCATION_DEFAULT: 'secretmanager(fullname: fullname-fake)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   LOCATION_DEFAULT: 
@@ -16,10 +16,10 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: myapp
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.LOCATION_ALT: type=sema-literal,secret=LOCATION_ALT
 stdout:         sema/source.LOCATION_ALT.LOCATION_ALT: 'secretmanager(fullname: fullname-fake)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   LOCATION_ALT: 
@@ -29,10 +29,10 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: myapp
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.LOCATION_CLI_ARG: type=sema-literal,secret=LOCATION_CLI_ARG
 stdout:         sema/source.LOCATION_CLI_ARG.LOCATION_CLI_ARG: 'secretmanager(fullname: fullname-fake)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   LOCATION_CLI_ARG: 

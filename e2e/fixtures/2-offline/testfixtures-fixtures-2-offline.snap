@@ -3,10 +3,10 @@ stdout: apiVersion: v1
 stdout: metadata:
 stdout:     name: 2-offline
 stdout:     annotations:
+stdout:         info/generated-by: github.com/q42/gcp-sema
 stdout:         sema/source.test.txt: type=sema-literal,secret=key
 stdout:         sema/source.test.txt.key: 'secretmanager(fullname: project/dummy/secrets/key)'
-stdout:     labels:
-stdout:         info/generated-by: github.com/q42/gcp-sema
+stdout:     labels: {}
 stdout: type: Opaque
 stdout: data:
 stdout:   test.txt: dmFsdWU=

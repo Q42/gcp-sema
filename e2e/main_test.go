@@ -32,10 +32,18 @@ func TestFixtures(t *testing.T) {
 			cmd.Stderr = textio.NewPrefixWriter(out, "stderr: ")
 			cmd.Stdout = textio.NewPrefixWriter(out, "stdout: ")
 			snaps, err := snapshot.New(snapshot.SnapDirectory(cmd.Dir), snapshot.ContextLines(2))
-			assert.NoError(t, err)
+			if !assert.NoError(t, err) {
+				return
+			}
 			err = cmd.Run()
-			assert.NoError(t, err)
-			snaps.Assert(t, out.Bytes())
+			if assert.NoError(t, err) {
+				defer func() {
+					if t.Failed() {
+						t.Log("Snapshot failure. To update them, run with UPDATE_SNAPSHOTS=true")
+					}
+				}()
+				snaps.Assert(t, out.Bytes())
+			}
 		})
 	}
 }
