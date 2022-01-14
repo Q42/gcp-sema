@@ -54,7 +54,7 @@ func (opts *proxyCommand) Execute(args []string) (err error) {
 		if opts.TLSKeyFile == "" || opts.TLSCertFile == "" {
 			return errors.New("If either --cert or --key is set, you must specify both")
 		}
-		return http.ListenAndServeTLS(opts.Address, opts.TLSCertFile, opts.TLSKeyFile, http.DefaultServeMux)
+		return http.ListenAndServeTLS(opts.Address, opts.TLSCertFile, opts.TLSKeyFile, mux)
 	}
 	log.Println("Starting insecure gcp-sema proxy server")
 	server := http.Server{
