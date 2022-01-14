@@ -19,11 +19,12 @@ var proxyDescription = `proxy starts a server which can be used with SEMA_PROXY 
 
 // proxyCommand defines the options
 type proxyCommand struct {
-	Address          string `long:"address" default:"127.0.0.1:8080" description:"Listen address. Do not expose this server publicly!"`
-	TLSCertFile      string `long:"cert" default:"" description:"If set, starts the server in secure TLS mode."`
-	TLSKeyFile       string `long:"key" default:"" description:"If set, starts the server in secure TLS mode."`
-	secretListCache  map[string][]secretmanager.KVValue
-	secretDataCache  map[string][]byte
+	Address         string `long:"address" default:"127.0.0.1:8080" description:"Listen address. Do not expose this server publicly!"`
+	TLSCertFile     string `long:"cert" default:"" description:"If set, starts the server in secure TLS mode."`
+	TLSKeyFile      string `long:"key" default:"" description:"If set, starts the server in secure TLS mode."`
+	secretListCache map[string][]secretmanager.KVValue
+	secretDataCache map[string]func() chan GetValueResult
+
 	secretClients    map[string]secretmanager.KVClient
 	secretListCacheM sync.Mutex
 	secretDataCacheM sync.Mutex
@@ -38,9 +39,9 @@ func init() {
 	panicIfErr(err)
 }
 
-func (opts *proxyCommand) Execute(args []string) error {
+func (opts *proxyCommand) Execute(args []string) (err error) {
 	opts.secretListCache = make(map[string][]secretmanager.KVValue)
-	opts.secretDataCache = make(map[string][]byte)
+	opts.secretDataCache = make(map[string]func() chan GetValueResult)
 	opts.secretClients = make(map[string]secretmanager.KVClient)
 	if opts.prepareClient == nil {
 		opts.prepareClient = prepareSemaClient
@@ -113,21 +114,46 @@ func (opts *proxyCommand) getCachedSingleSafe(projectID string, shortName string
 	return k, k != nil
 }
 
+type GetValueResult struct {
+	data []byte
+	err  error
+}
+
 func (opts *proxyCommand) getValueSafe(projectID string, k secretmanager.KVValue) (data []byte, hit bool, err error) {
 	opts.secretDataCacheM.Lock()
-	defer opts.secretDataCacheM.Unlock()
-
-	if d, exists := opts.secretDataCache[k.GetFullName()]; exists {
+	d, exists := opts.secretDataCache[k.GetFullName()]
+	if exists {
+		opts.secretDataCacheM.Unlock()
 		hit = true
-		data = d
 	} else {
 		hit = false
-		data, err = k.GetValue()
-		if err == nil {
-			opts.secretDataCache[k.GetFullName()] = data
+		var loaded bool
+		var cache []byte
+		var err error
+		start := make(chan struct{}, 1)
+		done := make(chan GetValueResult)
+		go func() {
+			for {
+				<-start
+				if loaded {
+					done <- GetValueResult{cache, err}
+					continue
+				}
+				cache, err = k.GetValue()
+				loaded = err == nil
+				done <- GetValueResult{cache, err}
+			}
+		}()
+		d = func() chan GetValueResult {
+			start <- struct{}{}
+			return done
 		}
+		opts.secretDataCache[k.GetFullName()] = d
+		opts.secretDataCacheM.Unlock()
 	}
-	return data, hit, err
+
+	result := <-d()
+	return result.data, hit, result.err
 }
 
 func (opts *proxyCommand) list(rw http.ResponseWriter, r *http.Request) {
