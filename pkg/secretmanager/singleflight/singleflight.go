@@ -8,20 +8,18 @@ import (
 )
 
 func New(c secretmanager.KVClient) secretmanager.KVClient {
-	return &semaSingleFlightClient{KVClient: c}
+	return &semaSingleFlightClient{KVClient: c, sf: &singleflight.Group{}}
 }
 
 type semaSingleFlightClient struct {
 	secretmanager.KVClient
-	sfList   singleflight.Group
-	sfSingle singleflight.Group
-	sfData   singleflight.Group
+	sf *singleflight.Group
 }
 
 var _ secretmanager.KVClient = &semaSingleFlightClient{}
 
 func (c *semaSingleFlightClient) ListKeys() ([]secretmanager.KVValue, error) {
-	result, err, _ := c.sfList.Do("list", func() (interface{}, error) {
+	result, err, _ := c.sf.Do("list", func() (interface{}, error) {
 		return c.KVClient.ListKeys()
 	})
 	if err != nil {
@@ -36,7 +34,7 @@ func (c *semaSingleFlightClient) ListKeys() ([]secretmanager.KVValue, error) {
 }
 
 func (c *semaSingleFlightClient) Get(name string) (secretmanager.KVValue, error) {
-	result, err, _ := c.sfSingle.Do(name, func() (interface{}, error) {
+	result, err, _ := c.sf.Do(name, func() (interface{}, error) {
 		return c.KVClient.Get(name)
 	})
 	if err != nil {
@@ -61,7 +59,7 @@ type semaSingleFlightClientKeyValue struct {
 }
 
 func (sf *semaSingleFlightClientKeyValue) GetValue() ([]byte, error) {
-	dataInterface, err, _ := sf.client.sfData.Do(sf.KVValue.GetFullName(), func() (interface{}, error) {
+	dataInterface, err, _ := sf.client.sf.Do(sf.KVValue.GetFullName(), func() (interface{}, error) {
 		return sf.KVValue.GetValue()
 	})
 	if err != nil {

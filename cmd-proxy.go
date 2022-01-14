@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/Q42/gcp-sema/pkg/secretmanager"
 	"github.com/Q42/gcp-sema/pkg/secretmanager/singleflight"
@@ -17,12 +19,18 @@ var proxyDescription = `proxy starts a server which can be used with SEMA_PROXY 
 
 // proxyCommand defines the options
 type proxyCommand struct {
-	Address         string `long:"address" default:"127.0.0.1:8080" description:"Listen address. Do not expose this server publicly!"`
-	TLSCertFile     string `long:"cert" default:"" description:"If set, starts the server in secure TLS mode."`
-	TLSKeyFile      string `long:"key" default:"" description:"If set, starts the server in secure TLS mode."`
-	secretListCache map[string][]secretmanager.KVValue
-	secretDataCache map[string][]byte
-	secretClients   map[string]secretmanager.KVClient
+	Address          string `long:"address" default:"127.0.0.1:8080" description:"Listen address. Do not expose this server publicly!"`
+	TLSCertFile      string `long:"cert" default:"" description:"If set, starts the server in secure TLS mode."`
+	TLSKeyFile       string `long:"key" default:"" description:"If set, starts the server in secure TLS mode."`
+	secretListCache  map[string][]secretmanager.KVValue
+	secretDataCache  map[string][]byte
+	secretClients    map[string]secretmanager.KVClient
+	secretListCacheM sync.Mutex
+	secretDataCacheM sync.Mutex
+	secretClientsM   sync.Mutex
+	// Testing
+	listener      net.Listener
+	prepareClient func(projectID string) secretmanager.KVClient
 }
 
 func init() {
@@ -34,9 +42,13 @@ func (opts *proxyCommand) Execute(args []string) error {
 	opts.secretListCache = make(map[string][]secretmanager.KVValue)
 	opts.secretDataCache = make(map[string][]byte)
 	opts.secretClients = make(map[string]secretmanager.KVClient)
+	if opts.prepareClient == nil {
+		opts.prepareClient = prepareSemaClient
+	}
 
-	http.HandleFunc("/list", opts.list)
-	http.HandleFunc("/get", opts.get)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/list", opts.list)
+	mux.HandleFunc("/get", opts.get)
 	if opts.TLSKeyFile != "" || opts.TLSCertFile != "" {
 		if opts.TLSKeyFile == "" || opts.TLSCertFile == "" {
 			return errors.New("If either --cert or --key is set, you must specify both")
@@ -44,16 +56,78 @@ func (opts *proxyCommand) Execute(args []string) error {
 		return http.ListenAndServeTLS(opts.Address, opts.TLSCertFile, opts.TLSKeyFile, http.DefaultServeMux)
 	}
 	log.Println("Starting insecure gcp-sema proxy server")
-	return http.ListenAndServe(opts.Address, http.DefaultServeMux)
+	server := http.Server{
+		Addr:    opts.Address,
+		Handler: mux,
+	}
+	opts.listener, err = net.Listen("tcp", opts.Address)
+	if err != nil {
+		return err
+	}
+	return server.Serve(opts.listener)
 }
 
 func (opts *proxyCommand) getClient(projectID string) secretmanager.KVClient {
+	opts.secretClientsM.Lock()
+	defer opts.secretClientsM.Unlock()
+
 	if c, exists := opts.secretClients[projectID]; exists {
 		return c
 	}
-	client := singleflight.New(prepareSemaClient(projectID))
+	client := singleflight.New(opts.prepareClient(projectID))
 	opts.secretClients[projectID] = client
 	return client
+}
+
+func (opts *proxyCommand) getListSafe(projectID string) (keys []secretmanager.KVValue, hit bool, err error) {
+	client := opts.getClient(projectID)
+
+	opts.secretListCacheM.Lock()
+	defer opts.secretListCacheM.Unlock()
+
+	if listKeys, exists := opts.secretListCache[projectID]; exists {
+		hit = true
+		keys = listKeys
+	} else {
+		hit = false
+		keys, err = client.ListKeys()
+		if err != nil {
+			return nil, false, err
+		}
+		opts.secretListCache[projectID] = keys
+	}
+	return keys, hit, err
+}
+
+func (opts *proxyCommand) getCachedSingleSafe(projectID string, shortName string) (k secretmanager.KVValue, hit bool) {
+	opts.secretListCacheM.Lock()
+	defer opts.secretListCacheM.Unlock()
+
+	if listCache, exists := opts.secretListCache[projectID]; exists {
+		for _, existingSecret := range listCache {
+			if existingSecret.GetShortName() == shortName {
+				k = existingSecret
+			}
+		}
+	}
+	return k, k != nil
+}
+
+func (opts *proxyCommand) getValueSafe(projectID string, k secretmanager.KVValue) (data []byte, hit bool, err error) {
+	opts.secretDataCacheM.Lock()
+	defer opts.secretDataCacheM.Unlock()
+
+	if d, exists := opts.secretDataCache[k.GetFullName()]; exists {
+		hit = true
+		data = d
+	} else {
+		hit = false
+		data, err = k.GetValue()
+		if err == nil {
+			opts.secretDataCache[k.GetFullName()] = data
+		}
+	}
+	return data, hit, err
 }
 
 func (opts *proxyCommand) list(rw http.ResponseWriter, r *http.Request) {
@@ -62,24 +136,20 @@ func (opts *proxyCommand) list(rw http.ResponseWriter, r *http.Request) {
 	var err error
 
 	// Get keys in project
-	var keys []secretmanager.KVValue
-	if listKeys, exists := opts.secretListCache[projectID]; exists {
+
+	keys, hit, err := opts.getListSafe(projectID)
+	if err != nil {
+		log.Println(err)
+		http.Error(rw, err.Error(), 500)
+		return
+	}
+	if hit {
 		rw.Header().Add("Cache-Hit", "true")
-		keys = listKeys
 	} else {
 		rw.Header().Add("Cache-Hit", "false")
-		client := opts.getClient(projectID)
-		keys, err = client.ListKeys()
-		if err != nil {
-			log.Println(err)
-			http.Error(rw, err.Error(), 500)
-			return
-		}
-		opts.secretListCache[projectID] = keys
 	}
 
 	log.Printf("Retrieved %d keys from %s", len(keys), projectID)
-
 	list := proxyListing{}
 	for _, k := range keys {
 		list.Secrets = append(list.Secrets, proxySecret{
@@ -107,14 +177,7 @@ func (opts *proxyCommand) get(rw http.ResponseWriter, r *http.Request) {
 
 	// Get secret
 	var err error
-	var k secretmanager.KVValue
-	if listCache, exists := opts.secretListCache[projectID]; exists {
-		for _, existingSecret := range listCache {
-			if existingSecret.GetShortName() == shortName {
-				k = existingSecret
-			}
-		}
-	}
+	k, _ := opts.getCachedSingleSafe(projectID, shortName)
 	if k == nil {
 		client := opts.getClient(projectID)
 		k, err = client.Get(shortName)
@@ -126,22 +189,19 @@ func (opts *proxyCommand) get(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the secret data payload
-	var data []byte
-	if d, exists := opts.secretDataCache[fullName]; exists {
+	data, hit, err := opts.getValueSafe(projectID, k)
+	if err != nil {
+		log.Println(err)
+		http.Error(rw, err.Error(), 500)
+		return
+	}
+	if hit {
 		rw.Header().Add("Cache-Hit", "true")
-		data = d
 	} else {
 		rw.Header().Add("Cache-Hit", "false")
-		data, err = k.GetValue()
-		if err != nil {
-			log.Println(err)
-			http.Error(rw, err.Error(), 500)
-			return
-		}
 	}
 
 	log.Printf("Sending %s", fullName)
-
 	jsonData, err := json.Marshal(proxySecretDetail{
 		ProxySecret: proxySecret{
 			ShortName: k.GetShortName(),
